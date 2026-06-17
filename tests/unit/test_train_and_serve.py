@@ -39,6 +39,7 @@ pytestmark = pytest.mark.unit
 
 _HAS_ORT = importlib.util.find_spec("onnxruntime") is not None
 _HAS_ONNX = importlib.util.find_spec("onnx") is not None
+_HAS_TF = importlib.util.find_spec("tensorflow") is not None
 
 
 # --------------------------------------------------------------------------- #
@@ -73,6 +74,11 @@ def test_train_pipeline_to_dict_is_json_safe() -> None:
 
 
 @pytest.mark.skipif(not (_HAS_ORT and _HAS_ONNX), reason="export needs the onnx builder + ort.")
+@pytest.mark.skipif(
+    _HAS_TF,
+    reason="Exercises the TensorFlow-free native export fallback; with the [train] extra "
+    "installed the pipeline takes the tf2onnx branch (covered by the slow parity tests).",
+)
 def test_train_pipeline_native_export_builds_servable_artifact(tmp_path: Path) -> None:
     artifact = tmp_path / "model.onnx"
     result = train_pipeline(n_obs=1000, look_back=60, seed=7, export=True, artifact_path=artifact)
@@ -135,7 +141,12 @@ def test_final_training_tensors_are_well_formed_and_scaled() -> None:
     assert np.isfinite(x).all() and np.isfinite(y).all()
 
 
-@pytest.mark.skipif(not (_HAS_ORT and _HAS_ONNX), reason="export needs the onnx builder + ort.")
+@pytest.mark.skipif(
+    not (_HAS_ORT and _HAS_ONNX) or _HAS_TF,
+    reason="Exercises the TensorFlow-free native onnx-builder export; needs onnx + ort and "
+    "requires TF to be ABSENT (with [train] installed the tf2onnx branch is taken instead, "
+    "covered by the slow parity tests).",
+)
 def test_export_artifact_native_backend(tmp_path: Path) -> None:
     from lstmforecast.data import random_walk_prices
     from lstmforecast.train import _export_artifact
