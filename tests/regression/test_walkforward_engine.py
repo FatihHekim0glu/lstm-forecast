@@ -121,6 +121,46 @@ def test_make_folds_exact_minimum_and_too_few() -> None:
         wf.make_folds(need - 1, _GOLDEN_CFG)
 
 
+def test_make_folds_rejects_overlapping_test_slices() -> None:
+    """FOLD-OVERLAP GUARD: ``step + embargo < test_size`` must be rejected.
+
+    If consecutive test slices advanced by fewer rows than ``test_size`` they would
+    overlap and double-count OOS observations. ``make_folds`` asserts
+    ``step + embargo >= test_size`` and raises before producing any folds.
+    """
+    from lstmforecast import ValidationError
+
+    overlapping = WalkForwardConfig(
+        look_back=60,
+        train_size=200,
+        val_size=50,
+        test_size=50,
+        step=40,  # step + embargo = 40 + 5 = 45 < test_size (50) => OVERLAP
+        purge=60,
+        embargo=5,
+        anchored=True,
+    )
+    with pytest.raises(ValidationError, match="do not overlap"):
+        wf.make_folds(1500, overlapping)
+
+    # The exact boundary (step + embargo == test_size) is permitted (no overlap).
+    boundary = WalkForwardConfig(
+        look_back=60,
+        train_size=200,
+        val_size=50,
+        test_size=50,
+        step=45,  # 45 + 5 == 50 == test_size => abutting, not overlapping
+        purge=60,
+        embargo=5,
+        anchored=True,
+    )
+    folds = wf.make_folds(1500, boundary)
+    assert len(folds) >= 2
+    # Abutting (gap exactly == embargo) but never overlapping.
+    for prev, nxt in itertools.pairwise(folds):
+        assert nxt.test[0] >= prev.test[1]
+
+
 # --------------------------------------------------------------------------- #
 # Deterministic fakes for the other groups' lazily-imported helpers           #
 # --------------------------------------------------------------------------- #

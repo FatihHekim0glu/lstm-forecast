@@ -42,16 +42,36 @@ _HAS_ONNX = importlib.util.find_spec("onnx") is not None
 _HAS_TF = importlib.util.find_spec("tensorflow") is not None
 
 
+def _can_serve_committed_artifact() -> bool:
+    """Serve path needs onnxruntime AND the committed default artifact present."""
+    if not _HAS_ORT:
+        return False
+    from lstmforecast.models.onnx_runtime import default_artifact_path
+
+    return default_artifact_path().is_file()
+
+
+_CAN_SERVE = _can_serve_committed_artifact()
+_serve_skip = pytest.mark.skipif(
+    not _CAN_SERVE,
+    reason="run_forecast serves the committed ONNX LSTM: needs onnxruntime + the shipped artifact.",
+)
+
+
 # --------------------------------------------------------------------------- #
 # train_pipeline                                                              #
 # --------------------------------------------------------------------------- #
+@_serve_skip
 def test_train_pipeline_no_export_reports_honest_null() -> None:
     result = train_pipeline(n_obs=1000, look_back=60, seed=7, export=False)
     assert isinstance(result, TrainResult)
     assert result.data_source == "synthetic"
-    # The documented NULL: no return-space improvement, insignificant DM test.
+    # The documented NULL: the REAL ONNX LSTM (the MODEL arm, run via onnxruntime)
+    # shows no return-space improvement over persistence and never beats the random
+    # walk in a Diebold-Mariano sense (a significant NEGATIVE DM statistic would be
+    # the model beating persistence; the honest LSTM can only tie or lose).
     assert result.metrics.mase_vs_persistence >= 1.0 - 1e-9
-    assert result.metrics.dm_pvalue >= 0.05
+    assert not (result.metrics.dm_statistic < 0.0 and result.metrics.dm_pvalue < 0.05)
     assert result.verdict.beats_naive is False
     # Honest multiplicity count == the explored HPO grid size.
     assert result.n_effective_trials == 4
@@ -61,6 +81,7 @@ def test_train_pipeline_no_export_reports_honest_null() -> None:
     assert result.manifest.seed == 7
 
 
+@_serve_skip
 def test_train_pipeline_to_dict_is_json_safe() -> None:
     import json
 
@@ -94,6 +115,7 @@ def test_train_pipeline_native_export_builds_servable_artifact(tmp_path: Path) -
     assert np.isfinite(out).all()
 
 
+@_serve_skip
 def test_train_pipeline_loads_csv(tmp_path: Path) -> None:
     # A real-data path: write a strictly-positive close CSV and retrain on it.
     from lstmforecast.data import random_walk_prices
@@ -164,6 +186,7 @@ def test_export_artifact_native_backend(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- #
 # serve.run_forecast                                                          #
 # --------------------------------------------------------------------------- #
+@_serve_skip
 def test_run_forecast_returns_summary_and_two_figures() -> None:
     run = run_forecast(n_obs=900, look_back=60, seed=7)
     assert isinstance(run, ForecastRun)
@@ -178,6 +201,7 @@ def test_run_forecast_returns_summary_and_two_figures() -> None:
     assert len(run.error_vs_baseline_figure["data"]) == 2
 
 
+@_serve_skip
 def test_run_forecast_payload_has_no_price_level_r2() -> None:
     payload = run_forecast(n_obs=800, look_back=60, seed=2).to_dict()
     summary = payload["summary"]
@@ -186,11 +210,21 @@ def test_run_forecast_payload_has_no_price_level_r2() -> None:
     assert summary["served_via" if "served_via" in summary else "data_source"]  # smoke
 
 
-def test_run_forecast_served_via_reports_artifact_presence(tmp_path: Path) -> None:
-    # With a non-existent artifact path the serve layer falls back to persistence.
+@_serve_skip
+def test_run_forecast_served_via_is_onnx() -> None:
+    # The MODEL arm is ALWAYS the committed ONNX LSTM (never persistence): a
+    # successful run records ``served_via == "onnx"`` so the served metrics are
+    # provably the LSTM-vs-persistence comparison, not persistence-vs-persistence.
+    run = run_forecast(n_obs=800, look_back=60, seed=5)
+    assert run.meta["served_via"] == "onnx"
+
+
+def test_run_forecast_missing_artifact_raises_blocker(tmp_path: Path) -> None:
+    # A missing/corrupt artifact is a BLOCKER: the serve path must raise rather
+    # than silently degrade to persistence (which would make beats_naive vacuous).
     missing = tmp_path / "absent.onnx"
-    run = run_forecast(n_obs=800, look_back=60, seed=5, artifact_path=missing)
-    assert run.meta["served_via"] == "persistence"
+    with pytest.raises(ArtifactError):
+        run_forecast(n_obs=800, look_back=60, seed=5, artifact_path=missing)
 
 
 def test_forecast_summary_to_dict_types() -> None:
