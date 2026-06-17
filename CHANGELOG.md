@@ -31,6 +31,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   walk the leakage-free pipeline does NOT beat persistence (`MASE ≥ 1`,
   Diebold-Mariano insignificant, `beats_naive = False`).
 
+### Documentation
+
+- README finalized with the honest NULL headline, the **actual** synthetic
+  metrics (`seed=7`: `MASE = 1.00`, `DM p = 1.00`, directional `0.50`,
+  `beats_naive = false`), a Validation table (ONNX-vs-Keras `1e-5`; oracle →
+  tolerance → test), a Reproduce block (synthetic by default, `--data` for real),
+  the debunked price-level-R² note (stated once), Limitations naming the
+  fixed-universe survivorship blind spot with a point-in-time (PIT) upgrade path,
+  and references (efficient-market/unit-root; Diebold-Mariano 1995;
+  Bailey–López de Prado DSR; AFML purge/embargo).
+- Added `docs/DESIGN.md` (layering, single-fold data flow, leakage invariants,
+  testing strategy) and Architecture Decision Records under `docs/decisions/`:
+  per-fold-scaler de-leak (0001), return-target-not-price (0002),
+  ONNX-serve-no-TF (0003), honest-null-vs-persistence (0004), and
+  no-price-level-R² (0005).
+- Added `CITATION.cff` (with the efficient-market, Diebold-Mariano, and
+  Bailey–López de Prado references).
+
 ## [0.1.0] - 2026-06-17
 
 ### Added

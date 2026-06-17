@@ -1,0 +1,70 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "lstm-forecast: A leakage-free LSTM stock forecaster and an honest report of the NULL result"
+abstract: >-
+  A pure, typed Python rebuild of the classic LSTM stock-price-prediction
+  project, done without leakage. It forecasts the next-day log-return (never the
+  price level), validates with a purged, embargoed, per-fold-scaled walk-forward,
+  and tests honestly against a random-walk / persistence baseline. The documented,
+  literature-backed result is the NULL: a properly validated LSTM (and
+  LSTM+Attention) does not beat persistence out-of-sample on return-space error
+  (MASE >= 1) or directional accuracy (Diebold-Mariano insignificant). No
+  price-level R-squared is reported. The shipped model is trained on synthetic
+  random-walk data and served via ONNX / onnxruntime (TensorFlow is train-only).
+type: software
+version: 0.1.0
+date-released: "2026-06-17"
+license: MIT
+repository-code: "https://github.com/FatihHekim0glu/lstm-forecast"
+url: "https://fatihhekimoglu.com"
+authors:
+  - family-names: "FatihHekim0glu"
+keywords:
+  - lstm
+  - time-series
+  - forecasting
+  - deep-learning
+  - quantitative-finance
+  - honest-null
+  - leakage-free
+  - diebold-mariano
+  - onnx
+references:
+  - type: article
+    title: "Efficient Capital Markets: A Review of Theory and Empirical Work"
+    authors:
+      - family-names: "Fama"
+        given-names: "Eugene F."
+    journal: "The Journal of Finance"
+    volume: 25
+    issue: 2
+    year: 1970
+  - type: article
+    title: "Comparing Predictive Accuracy"
+    authors:
+      - family-names: "Diebold"
+        given-names: "Francis X."
+      - family-names: "Mariano"
+        given-names: "Roberto S."
+    journal: "Journal of Business & Economic Statistics"
+    volume: 13
+    issue: 3
+    year: 1995
+  - type: article
+    title: "The Deflated Sharpe Ratio: Correcting for Selection Bias, Backtest Overfitting, and Non-Normality"
+    authors:
+      - family-names: "Bailey"
+        given-names: "David H."
+      - family-names: "Lopez de Prado"
+        given-names: "Marcos"
+    journal: "The Journal of Portfolio Management"
+    volume: 40
+    issue: 5
+    year: 2014
+  - type: book
+    title: "Advances in Financial Machine Learning"
+    authors:
+      - family-names: "Lopez de Prado"
+        given-names: "Marcos"
+    publisher: "Wiley"
+    year: 2018
