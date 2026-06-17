@@ -107,7 +107,47 @@ def build_model(config: LstmConfig) -> keras.Model:
     keras.Model
         A compiled (Adam + MSE) but untrained Keras model.
     """
-    raise NotImplementedError
+    import tensorflow as tf
+    from tensorflow import keras
+
+    # Deterministic graph construction / initialization: set_random_seed seeds
+    # Python's `random`, NumPy, and TensorFlow in one call.
+    tf.keras.utils.set_random_seed(int(config.seed))
+
+    inputs = keras.layers.Input(shape=(config.look_back, config.n_features), name="sequence")
+
+    if config.architecture == "attention":
+        # Light additive self-attention over the per-timestep LSTM states: score
+        # each timestep, softmax to weights, and form a weighted context vector.
+        states = keras.layers.LSTM(
+            config.units,
+            return_sequences=True,
+            dropout=config.dropout,
+            name="lstm",
+        )(inputs)
+        scores = keras.layers.Dense(1, activation="tanh", name="attn_score")(states)
+        weights = keras.layers.Softmax(axis=1, name="attn_weights")(scores)
+        context = keras.layers.Multiply(name="attn_weighted")([states, weights])
+        body = keras.layers.Lambda(
+            lambda t: tf.reduce_sum(t, axis=1),
+            name="attn_context",
+            output_shape=(config.units,),
+        )(context)
+    else:
+        body = keras.layers.LSTM(
+            config.units,
+            return_sequences=False,
+            dropout=config.dropout,
+            name="lstm",
+        )(inputs)
+
+    output = keras.layers.Dense(1, activation="linear", name="return_hat")(body)
+    model = keras.Model(inputs=inputs, outputs=output, name=f"lstm_{config.architecture}")
+    model.compile(
+        optimizer=keras.optimizers.Adam(learning_rate=config.learning_rate),
+        loss="mse",
+    )
+    return model
 
 
 def train_model(
@@ -140,7 +180,44 @@ def train_model(
     keras.Model
         The trained Keras model.
     """
-    raise NotImplementedError
+    import numpy as np
+
+    from lstmforecast._exceptions import ValidationError
+
+    x_arr = np.asarray(x_train, dtype="float64")
+    y_arr = np.asarray(y_train, dtype="float64").reshape(-1)
+    if x_arr.ndim != 3:
+        raise ValidationError(f"train_model: x_train must be a 3-D tensor, got ndim={x_arr.ndim}.")
+    if x_arr.shape[0] != y_arr.shape[0]:
+        raise ValidationError(
+            f"train_model: x_train has {x_arr.shape[0]} samples but y_train has "
+            f"{y_arr.shape[0]}; they must match."
+        )
+    if (x_arr.shape[1], x_arr.shape[2]) != (config.look_back, config.n_features):
+        raise ValidationError(
+            f"train_model: x_train trailing dims {(x_arr.shape[1], x_arr.shape[2])} "
+            f"do not match config (look_back={config.look_back}, "
+            f"n_features={config.n_features})."
+        )
+
+    model = build_model(config)
+
+    validation_data: tuple[FloatArray, FloatArray] | None = None
+    if x_val is not None and y_val is not None:
+        xv = np.asarray(x_val, dtype="float64")
+        yv = np.asarray(y_val, dtype="float64").reshape(-1)
+        validation_data = (xv, yv)
+
+    model.fit(
+        x_arr,
+        y_arr,
+        validation_data=validation_data,
+        epochs=config.epochs,
+        batch_size=config.batch_size,
+        shuffle=False,
+        verbose=0,
+    )
+    return model
 
 
 def export_onnx(model: keras.Model, path: str, *, config: LstmConfig) -> str:
@@ -167,4 +244,27 @@ def export_onnx(model: keras.Model, path: str, *, config: LstmConfig) -> str:
     str
         The path the ONNX artifact was written to.
     """
-    raise NotImplementedError
+    from pathlib import Path
+
+    import tensorflow as tf
+    import tf2onnx
+
+    out_path = Path(path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Fix a batch-flexible input signature (None batch, look_back, n_features) so
+    # the served graph accepts any number of windows at inference time.
+    input_signature = (
+        tf.TensorSpec(
+            (None, config.look_back, config.n_features),
+            tf.float32,
+            name="sequence",
+        ),
+    )
+    tf2onnx.convert.from_keras(
+        model,
+        input_signature=input_signature,
+        opset=17,
+        output_path=str(out_path),
+    )
+    return str(out_path)

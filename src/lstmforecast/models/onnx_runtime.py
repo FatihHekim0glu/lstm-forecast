@@ -76,7 +76,31 @@ class OnnxForecaster:
         ArtifactError
             If the artifact file is missing or the session fails to initialize.
         """
-        raise NotImplementedError
+        if self._session is not None:
+            return self
+
+        from lstmforecast._exceptions import ArtifactError
+
+        if not self._artifact_path.is_file():
+            raise ArtifactError(
+                f"OnnxForecaster.load: ONNX artifact not found at {self._artifact_path}."
+            )
+
+        try:
+            import onnxruntime as ort
+
+            self._session = ort.InferenceSession(
+                str(self._artifact_path),
+                providers=["CPUExecutionProvider"],
+            )
+        except ArtifactError:
+            raise
+        except Exception as exc:  # normalize any onnxruntime error to ArtifactError
+            raise ArtifactError(
+                f"OnnxForecaster.load: failed to initialize onnxruntime session "
+                f"for {self._artifact_path}: {exc}"
+            ) from exc
+        return self
 
     def predict(self, x: SequenceTensor) -> FloatArray:
         """Run the ONNX forward pass on a PRE-SCALED sequence tensor.
@@ -101,4 +125,31 @@ class OnnxForecaster:
             If the session cannot be loaded or the input shape does not match the
             exported graph signature.
         """
-        raise NotImplementedError
+        import numpy as np
+
+        from lstmforecast._exceptions import ArtifactError
+
+        x_arr = np.asarray(x, dtype="float32")
+        if x_arr.ndim != 3:
+            raise ArtifactError(
+                f"OnnxForecaster.predict: x must be a 3-D "
+                f"(n_samples, look_back, n_features) tensor, got ndim={x_arr.ndim}."
+            )
+
+        self.load()
+        session = self._session
+        if session is None:  # pragma: no cover - load() always sets a session or raises
+            raise ArtifactError("OnnxForecaster.predict: session failed to initialize.")
+
+        # ``session`` is an onnxruntime.InferenceSession; typed loosely (object) so
+        # the package never imports onnxruntime at module load.
+        input_name = session.get_inputs()[0].name  # type: ignore[attr-defined]
+        try:
+            outputs = session.run(None, {input_name: x_arr})  # type: ignore[attr-defined]
+        except Exception as exc:  # normalize onnxruntime runtime errors
+            raise ArtifactError(
+                f"OnnxForecaster.predict: onnxruntime forward pass failed "
+                f"(check the input shape matches the exported signature): {exc}"
+            ) from exc
+
+        return np.asarray(outputs[0], dtype="float64").reshape(-1)

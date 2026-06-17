@@ -24,6 +24,7 @@ import pandas as pd
 
 from lstmforecast._exceptions import ValidationError
 from lstmforecast._rng import make_rng
+from lstmforecast._validation import ensure_series
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -139,7 +140,22 @@ def trend_plus_noise_prices(
     ValidationError
         If ``n_obs < 2``, ``s0 <= 0``, or ``sigma <= 0``.
     """
-    raise NotImplementedError
+    if n_obs < 2:
+        raise ValidationError(f"trend_plus_noise_prices: n_obs must be >= 2, got {n_obs}.")
+    if s0 <= 0.0:
+        raise ValidationError(f"trend_plus_noise_prices: s0 must be > 0, got {s0}.")
+    if sigma <= 0.0:
+        raise ValidationError(f"trend_plus_noise_prices: sigma must be > 0, got {sigma}.")
+
+    gen = make_rng(seed)
+    shocks = gen.normal(loc=0.0, scale=sigma, size=n_obs)
+    # Add a constant per-step drift to every increment, then anchor the first
+    # observation at s0 (no drift/shock applied to the starting bar).
+    increments = mu + shocks
+    increments[0] = 0.0
+    log_prices = np.log(s0) + np.cumsum(increments)
+    prices = np.exp(log_prices)
+    return pd.Series(prices, index=_business_index(n_obs, start), name="close", dtype="float64")
 
 
 def pure_noise_returns(
@@ -176,7 +192,14 @@ def pure_noise_returns(
     ValidationError
         If ``n_obs < 1`` or ``sigma <= 0``.
     """
-    raise NotImplementedError
+    if n_obs < 1:
+        raise ValidationError(f"pure_noise_returns: n_obs must be >= 1, got {n_obs}.")
+    if sigma <= 0.0:
+        raise ValidationError(f"pure_noise_returns: sigma must be > 0, got {sigma}.")
+
+    gen = make_rng(seed)
+    returns = gen.normal(loc=0.0, scale=sigma, size=n_obs)
+    return pd.Series(returns, index=_business_index(n_obs, start), name="return", dtype="float64")
 
 
 def to_log_returns(prices: pd.Series) -> pd.Series:
@@ -202,7 +225,17 @@ def to_log_returns(prices: pd.Series) -> pd.Series:
     ValidationError
         If ``prices`` is empty or contains a non-positive value.
     """
-    raise NotImplementedError
+    series = ensure_series(prices, name="prices", allow_nan=True)
+    if bool((series <= 0.0).any()):
+        raise ValidationError("to_log_returns: prices must be strictly positive.")
+
+    # NO-LOOKAHEAD REQUIREMENT: difference the log of the raw observed prices.
+    # Differencing on observed values never forward-fills before differencing, so
+    # it does not manufacture spurious zero returns across gaps. The leading NaN
+    # row produced by ``.diff()`` is dropped.
+    log_prices = np.log(series.to_numpy(dtype="float64"))
+    diffs = np.diff(log_prices)
+    return pd.Series(diffs, index=series.index[1:], name="return", dtype="float64")
 
 
 def load_prices(path: str | Path) -> tuple[pd.Series, DataSource]:
@@ -229,4 +262,50 @@ def load_prices(path: str | Path) -> tuple[pd.Series, DataSource]:
         If the file is missing required columns, is empty, or has non-positive
         or non-monotonic-in-time prices.
     """
-    raise NotImplementedError
+    # ``os.fspath`` accepts both ``str`` and ``pathlib.Path`` without importing
+    # ``pathlib`` at module scope; the read itself uses the already-imported
+    # pandas (the heavy parquet/pyarrow cache layer is not needed for a plain CSV).
+    import os
+
+    csv_path = os.fspath(path)
+    if not os.path.isfile(csv_path):
+        raise ValidationError(f"load_prices: file not found: {csv_path!r}.")
+
+    try:
+        frame = pd.read_csv(csv_path)
+    except (ValueError, OSError, pd.errors.ParserError) as exc:
+        raise ValidationError(f"load_prices: could not parse CSV {csv_path!r}: {exc}.") from exc
+
+    # Resolve the date and close columns case-insensitively.
+    lower = {str(col).strip().lower(): col for col in frame.columns}
+    if "close" not in lower:
+        raise ValidationError(
+            f"load_prices: CSV must have a 'close' column, found {list(frame.columns)}."
+        )
+    close_col = lower["close"]
+
+    if "date" in lower:
+        date_index = pd.to_datetime(frame[lower["date"]], errors="raise")
+    else:
+        # No explicit date column: treat the first column as the date index.
+        date_index = pd.to_datetime(frame.iloc[:, 0], errors="raise")
+
+    series = pd.Series(
+        frame[close_col].to_numpy(dtype="float64"),
+        index=pd.DatetimeIndex(date_index),
+        name="close",
+        dtype="float64",
+    )
+
+    if series.empty:
+        raise ValidationError(f"load_prices: CSV {csv_path!r} has no rows.")
+    # Sort ascending in time so downstream ``.shift(1)`` / windowing is valid.
+    series = series.sort_index()
+    if bool(series.isna().any()):
+        raise ValidationError(f"load_prices: CSV {csv_path!r} contains missing close values.")
+    if bool((series <= 0.0).any()):
+        raise ValidationError(f"load_prices: CSV {csv_path!r} has non-positive close prices.")
+    if series.index.has_duplicates:
+        raise ValidationError(f"load_prices: CSV {csv_path!r} has duplicate dates.")
+
+    return series, "csv"

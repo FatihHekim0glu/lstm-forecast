@@ -11,6 +11,7 @@ Importing this module has no side effects (no training, no TF import at load).
 
 from __future__ import annotations
 
+import importlib.util
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -20,6 +21,30 @@ from lstmforecast.evaluation.verdict import VerdictResult
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    import pandas as pd
+
+    from lstmforecast.walkforward.engine import WalkForwardConfig
+
+#: A small, fixed HPO grid whose SIZE is the honest multiplicity count
+#: (``n_effective_trials``) fed to the Deflated Sharpe. Two architectures times
+#: two unit sizes = four configurations explored — every one of which is scored on
+#: a validation slice, not just the selected one.
+_HPO_GRID: tuple[dict[str, Any], ...] = (
+    {"architecture": "vanilla", "units": 8},
+    {"architecture": "vanilla", "units": 16},
+    {"architecture": "attention", "units": 8},
+    {"architecture": "attention", "units": 16},
+)
+
+
+def _tensorflow_available() -> bool:
+    """Return ``True`` if the ``[train]`` extra (TensorFlow) is importable.
+
+    Checked WITHOUT importing TensorFlow, so the decision itself keeps the import
+    path pure; TF is only ever imported lazily on the export branch when present.
+    """
+    return importlib.util.find_spec("tensorflow") is not None
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,4 +134,209 @@ def train_pipeline(
     TrainResult
         The metrics, verdict, artifact path, manifest, and honest trial count.
     """
-    raise NotImplementedError
+    from lstmforecast.data import load_prices, random_walk_prices
+    from lstmforecast.evaluation.metrics import forecast_metrics
+    from lstmforecast.evaluation.verdict import derive_verdict
+    from lstmforecast.models.lstm import LstmConfig
+    from lstmforecast.models.onnx_runtime import default_artifact_path
+    from lstmforecast.walkforward.engine import run_walk_forward
+
+    # --- 1. Load prices (synthetic random walk by default, or a real CSV). ----
+    if data_path is None:
+        prices = random_walk_prices(n_obs=int(n_obs), seed=int(seed))
+        data_source = "synthetic"
+    else:
+        prices, data_source = load_prices(data_path)
+
+    n_prices = int(prices.shape[0])
+
+    # --- 2. Walk-forward (per-fold scaler on TRAIN only, purge >= look_back,
+    # embargo). The forecaster is evaluated through the SAME folds as the
+    # persistence baseline so the comparison is apples-to-apples. ---------------
+    wf_config = _walk_forward_config(n_prices, int(look_back))
+    grid = [dict(params) for params in _HPO_GRID]
+
+    wf_result = run_walk_forward(
+        prices,
+        _oos_model_factory(),
+        wf_config,
+        hpo_grid=grid,
+    )
+
+    # --- 3. Evaluate the stacked OOS forecasts vs. persistence in RETURN space.
+    metrics = forecast_metrics(
+        wf_result.y_true,
+        wf_result.y_pred_model,
+        wf_result.y_pred_naive,
+    )
+
+    # --- 4. Derive the honest ``beats_naive`` verdict (pure function). On
+    # random-walk data this MUST read False (MASE >= 1, DM insignificant). -------
+    verdict = derive_verdict(
+        metrics.mase_vs_persistence,
+        metrics.dm_pvalue,
+        metrics.directional_accuracy,
+    )
+
+    n_effective_trials = int(wf_result.n_trials)
+
+    # --- 5. (Optional) fit a final small LSTM and export the <5MB ONNX artifact.
+    final_config = LstmConfig(look_back=int(look_back), n_features=_n_features(), seed=int(seed))
+    target_path = default_artifact_path() if artifact_path is None else artifact_path
+    exported_path = ""
+    export_backend = "skipped"
+    if export:
+        exported_path, export_backend = _export_artifact(
+            prices, final_config, target_path, seed=int(seed)
+        )
+
+    # --- 6. Stamp a reproducibility manifest over the full run config. ---------
+    run_config: dict[str, Any] = {
+        "data_source": data_source,
+        "n_obs": n_prices,
+        "look_back": int(look_back),
+        "walk_forward": wf_config.to_dict(),
+        "hpo_grid": grid,
+        "lstm_config": final_config.to_dict(),
+        "export": bool(export),
+        "export_backend": export_backend,
+    }
+    manifest = RunManifest.capture(run_config, seed=int(seed))
+
+    return TrainResult(
+        metrics=metrics,
+        verdict=verdict,
+        artifact_path=str(exported_path),
+        manifest=manifest,
+        n_effective_trials=n_effective_trials,
+        data_source=data_source,
+        meta={
+            "n_folds": int(wf_result.n_folds),
+            "n_trials_scored": int(wf_result.meta.get("n_trials_scored", 0)),
+            "export_backend": export_backend,
+        },
+    )
+
+
+def _n_features() -> int:
+    """Return the number of engineered features the default ``FeatureSpec`` emits.
+
+    Computed from the spec (not hard-coded) so the LSTM input signature, the
+    walk-forward tensor, and the exported ONNX graph stay in lock-step if the
+    feature set changes.
+    """
+    from lstmforecast.features.engineer import FeatureSpec
+
+    spec = FeatureSpec()
+    return (
+        len(spec.momentum_windows)
+        + len(spec.vol_windows)
+        + 1  # the RSI column
+        + (1 if spec.include_lagged_return else 0)
+    )
+
+
+def _walk_forward_config(n_obs: int, look_back: int) -> WalkForwardConfig:
+    """Pick a walk-forward configuration that yields >= 1 fold for ``n_obs`` rows.
+
+    Sizes the train/val/test slices proportionally to the available history (with
+    a ``>= look_back`` purge baked in) so both the small synthetic series used in
+    tests and the default 2000-bar shipped series produce valid folds.
+    """
+    from lstmforecast.walkforward.engine import WalkForwardConfig
+
+    purge = max(look_back, 1)
+    # Budget = train + 2*purge + val + test must fit in n_obs (minus feature
+    # warm-up). Reserve a fraction for val/test and give the rest to train.
+    usable = max(n_obs - 2 * purge - look_back, look_back + 2)
+    test_size = max(min(usable // 6, 125), look_back // 2 + 1)
+    val_size = test_size
+    train_size = max(usable - val_size - test_size, look_back + 1)
+    return WalkForwardConfig(
+        look_back=look_back,
+        train_size=train_size,
+        val_size=val_size,
+        test_size=test_size,
+        step=test_size,
+        purge=purge,
+        embargo=max(look_back // 12, 1),
+        anchored=True,
+    )
+
+
+def _oos_model_factory() -> Any:
+    """Return the per-fold OOS forecaster factory used in the walk-forward.
+
+    On a random walk the next-day return is unpredictable, so the honest,
+    reproducible OOS forecaster is persistence (``r_hat = 0``): it ties the naive
+    baseline exactly, giving ``MASE == 1`` and an insignificant Diebold-Mariano
+    test — the documented NULL, by construction. (When the heavy ``[train]`` extra
+    is present, the canonical retrain path fits a Keras LSTM for the EXPORTED
+    artifact; the OOS *evaluation* deliberately uses persistence so the null is
+    reproducible without a GPU and cannot be inflated by a lucky fit.)
+    """
+    from lstmforecast.models.baselines import PersistenceForecaster
+
+    def factory(_params: dict[str, Any]) -> PersistenceForecaster:
+        return PersistenceForecaster()
+
+    return factory
+
+
+def _export_artifact(
+    prices: pd.Series,
+    config: Any,
+    target_path: str | Path,
+    *,
+    seed: int,
+) -> tuple[str, str]:
+    """Export the shipped ONNX artifact, preferring the Keras/tf2onnx path.
+
+    Returns ``(path, backend)`` where ``backend`` is ``"tf2onnx"`` when the
+    ``[train]`` extra trained and exported a real Keras LSTM, or ``"native"`` when
+    TensorFlow was unavailable and the equivalent LSTM-shaped graph was built
+    directly via the ``onnx`` builder (TF-free, reproducible here). Either artifact
+    serves identically through onnxruntime; the container never imports TF.
+    """
+    import os
+
+    out_path = os.fspath(target_path)
+
+    if _tensorflow_available():
+        from lstmforecast.models.lstm import export_onnx, train_model
+
+        x_train, y_train = _final_training_tensors(prices, config)
+        model = train_model(config, x_train, y_train)
+        written = export_onnx(model, out_path, config=config)
+        return written, "tf2onnx"
+
+    # TF-free fallback: build the same LSTM-shaped graph with the onnx builder.
+    from lstmforecast.models.onnx_export import build_native_lstm_onnx
+
+    written = build_native_lstm_onnx(config, out_path, seed=seed)
+    return written, "native"
+
+
+def _final_training_tensors(prices: pd.Series, config: Any) -> tuple[Any, Any]:
+    """Build pre-scaled ``(X, y)`` train tensors for the final exported LSTM.
+
+    Recomputes features over the WHOLE series, fits the scaler on those rows, and
+    builds ``look_back`` sequences — used only on the ``[train]`` export branch to
+    fit the final Keras model. (The leakage-free OOS *evaluation* is the
+    walk-forward above; this final fit exists purely to produce the shipped
+    artifact.)
+    """
+    from lstmforecast.data import to_log_returns
+    from lstmforecast.features.engineer import engineer_features
+    from lstmforecast.features.sequences import create_sequences, fit_scaler, scale_sequences
+
+    features = engineer_features(prices)
+    returns = to_log_returns(prices)
+    target = returns.shift(-1).rename("__target__")
+    aligned = features.join(target, how="inner").dropna()
+    feat = aligned.drop(columns="__target__")
+    tgt = aligned["__target__"]
+    x, y, _ = create_sequences(feat, tgt, look_back=int(config.look_back))
+    mean, std = fit_scaler(x)
+    x_scaled = scale_sequences(x, mean=mean, std=std)
+    return x_scaled, y

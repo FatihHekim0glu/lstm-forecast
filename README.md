@@ -45,10 +45,26 @@ Diebold-Mariano test vs. the random walk with HAC standard errors).
 ## Serving: ONNX, never TensorFlow in the container
 
 TensorFlow/Keras is **train-only** (the `[train]` extra). The trained LSTM is
-exported to a tiny (<5 MB) **ONNX** artifact (`tf2onnx`), committed inside the
-package, and served with **onnxruntime** (the `[serve]` extra). `import
-lstmforecast` imports no TensorFlow and no inference engine — the package is
-import-pure.
+exported to a tiny (<5 MB) **ONNX** artifact, committed inside the package
+(`src/lstmforecast/artifacts/lstm_forecast.onnx`), and served with **onnxruntime**
+(the `[serve]` extra). `import lstmforecast` imports no TensorFlow and no inference
+engine — the package is import-pure.
+
+The export has two equivalent backends: the canonical Keras→ONNX path (`tf2onnx`,
+when the `[train]` extra is installed) and a TensorFlow-free native builder
+(`models.onnx_export`, via the `onnx` builder) that produces the same
+`(N, look_back, n_features) → (N, 1)` LSTM graph so the shipped artifact is
+reproducible without a GPU. Either artifact serves identically through onnxruntime.
+
+The backend calls two serve entrypoints (onnxruntime only, no TF):
+
+- `forecast_from_onnx(features)` — run the committed ONNX graph on a pre-scaled
+  sequence tensor.
+- `run_forecast(...)` — the high-level entrypoint: leakage-free walk-forward →
+  return-space metrics vs. persistence → honest `beats_naive` verdict → a JSON-safe
+  `summary` (`rmse_return`, `mae_return`, `mase_vs_persistence`,
+  `directional_accuracy`, `dm_pvalue`, `beats_naive`, `n_effective_trials`,
+  `data_source`) plus the two Plotly `{data, layout}` figures.
 
 ## Install
 

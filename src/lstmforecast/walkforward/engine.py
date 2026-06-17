@@ -40,6 +40,15 @@ from lstmforecast._typing import FloatArray
 #: the LSTM satisfy this).
 ModelFactory = Callable[[dict[str, Any]], Any]
 
+#: Extra left-context bars (beyond ``look_back``) given to the per-fold feature
+#: recompute so a slice's earliest rows still have enough warm-up to form a full
+#: window. Sized to cover the longest default indicator warm-up comfortably; it is
+#: strictly-past context only (see ``_fold_sequences``), never forward-looking.
+_FEATURE_WARMUP = 64
+
+#: Internal column name used to join the next-day target onto the feature frame.
+_TARGET_COL = "__wf_target__"
+
 
 def _safe_float(value: object) -> float | None:
     """Coerce ``value`` to a finite float, mapping NaN/Inf/None to ``None``."""
@@ -244,7 +253,56 @@ def make_folds(n_obs: int, config: WalkForwardConfig) -> list[Fold]:
     InsufficientDataError
         If not a single fold fits in ``n_obs`` rows.
     """
-    raise NotImplementedError
+    from lstmforecast._exceptions import InsufficientDataError, ValidationError
+
+    if int(n_obs) < 0:
+        raise ValidationError(f"make_folds: n_obs must be >= 0, got {n_obs}.")
+    n = int(n_obs)
+
+    purge = config.effective_purge
+    embargo = config.embargo
+    # The fold advance includes an EMBARGO gap after each test block so adjacent
+    # folds cannot share information through overlapping windows: even if
+    # ``step < test_size``, the embargo forces a strictly positive gap between one
+    # fold's test block and the next fold's region.
+    advance = config.step + embargo
+
+    # One fold consumes, from its train start: the train slice, a purge gap, the
+    # val slice, a purge gap, then the test slice.
+    folds: list[Fold] = []
+    fold_idx = 0
+    while True:
+        # ``anchor`` is the row at which THIS fold's train window begins to grow.
+        # With an anchored (expanding) train slice the train START stays at 0;
+        # with a rolling train slice it advances by ``advance`` each fold.
+        anchor = fold_idx * advance
+        train_start = 0 if config.anchored else anchor
+        train_stop = anchor + config.train_size
+        val_start = train_stop + purge
+        val_stop = val_start + config.val_size
+        test_start = val_stop + purge
+        test_stop = test_start + config.test_size
+
+        if test_stop > n:
+            break
+
+        folds.append(
+            Fold(
+                train=(train_start, train_stop),
+                val=(val_start, val_stop),
+                test=(test_start, test_stop),
+            )
+        )
+        fold_idx += 1
+
+    if not folds:
+        raise InsufficientDataError(
+            f"make_folds: {n} observation(s) is too few for a single walk-forward fold "
+            f"(need train_size + 2*purge + val_size + test_size = "
+            f"{config.train_size + 2 * purge + config.val_size + config.test_size}; "
+            f"purge={purge}, embargo={embargo})."
+        )
+    return folds
 
 
 def run_walk_forward(
@@ -295,4 +353,196 @@ def run_walk_forward(
     InsufficientDataError
         If the series is too short for one fold.
     """
-    raise NotImplementedError
+    from lstmforecast._exceptions import ValidationError
+    from lstmforecast._validation import ensure_monotonic_index, ensure_series
+    from lstmforecast.features.engineer import engineer_features
+    from lstmforecast.features.sequences import create_sequences, fit_scaler, scale_sequences
+
+    # --- Coerce + validate the price series -------------------------------
+    # ``ensure_series`` returns a float64 COPY that preserves the caller's (time)
+    # index, which the engine needs for date-aligned OOS reporting and the
+    # window-end purge/embargo filtering.
+    price_series = ensure_series(prices, name="prices")
+    ensure_monotonic_index(price_series, name="prices")
+    if bool((price_series <= 0.0).any()):
+        raise ValidationError("run_walk_forward: prices must be strictly positive.")
+
+    grid: list[dict[str, Any]] = list(hpo_grid) if hpo_grid else [{}]
+    if not grid:  # pragma: no cover - defensive; hpo_grid=[] falls back above
+        grid = [{}]
+    look_back = config.look_back
+
+    n_obs = int(price_series.shape[0])
+    folds = make_folds(n_obs, config)
+
+    all_dates: list[pd.Index] = []
+    all_true: list[FloatArray] = []
+    all_model: list[FloatArray] = []
+    all_naive: list[FloatArray] = []
+    n_trials_total = 0
+
+    for fold in folds:
+        # --- DE-LEAK: recompute features ONCE per fold over the fold's span, then
+        # PARTITION sequences into train/val/test by their (window-end) POSITION.
+        # Features are strictly-causal (lagged), so a test-positioned sequence's
+        # rows depend only on past bars; the >= look_back purge baked into the
+        # fold boundaries guarantees no window straddles a split. ----------------
+        train_x, train_y = _fold_sequences(
+            price_series, fold.train, look_back, engineer_features, create_sequences
+        )[:2]
+        val_x, val_y = _fold_sequences(
+            price_series, fold.val, look_back, engineer_features, create_sequences
+        )[:2]
+        test_x, test_y, test_idx = _fold_sequences(
+            price_series, fold.test, look_back, engineer_features, create_sequences
+        )
+
+        # Fit the scaler on the TRAIN sequences exclusively (the headline fix),
+        # then APPLY (never re-fit) to val/test.
+        mean, std = fit_scaler(train_x)
+        train_xs = scale_sequences(train_x, mean=mean, std=std)
+        val_xs = scale_sequences(val_x, mean=mean, std=std) if val_x.shape[0] else val_x
+        test_xs = scale_sequences(test_x, mean=mean, std=std) if test_x.shape[0] else test_x
+
+        # --- HPO: score every config on the VAL slice ONLY, pick the best. ----
+        best_params: dict[str, Any] = grid[0]
+        best_score = float("inf")
+        for params in grid:
+            n_trials_total += 1
+            candidate = model_factory(dict(params))
+            candidate.fit(train_xs, train_y)
+            val_pred = _as_float_array(candidate.predict(val_xs))
+            score = _val_score(val_y, val_pred)
+            if score < best_score:
+                best_score = score
+                best_params = params
+
+        # --- Refit the selected config on TRAIN, predict the TEST slice. ------
+        model = model_factory(dict(best_params))
+        model.fit(train_xs, train_y)
+        test_pred = _as_float_array(model.predict(test_xs))
+        naive_pred = np.zeros(test_y.shape[0], dtype="float64")
+
+        all_dates.append(test_idx)
+        all_true.append(test_y)
+        all_model.append(test_pred)
+        all_naive.append(naive_pred)
+
+    dates = _concat_index(all_dates)
+    y_true = _concat_float(all_true)
+    y_pred_model = _concat_float(all_model)
+    y_pred_naive = _concat_float(all_naive)
+
+    return WalkForwardResult(
+        dates=dates,
+        y_true=y_true,
+        y_pred_model=y_pred_model,
+        y_pred_naive=y_pred_naive,
+        n_folds=len(folds),
+        n_trials=len(grid),
+        meta={
+            "config": config.to_dict(),
+            "n_trials_scored": int(n_trials_total),
+            "anchored": bool(config.anchored),
+        },
+    )
+
+
+def _fold_sequences(
+    prices: pd.Series,
+    bounds: tuple[int, int],
+    look_back: int,
+    engineer_features: Callable[..., pd.DataFrame],
+    create_sequences: Callable[..., tuple[FloatArray, FloatArray, pd.Index]],
+) -> tuple[FloatArray, FloatArray, pd.Index]:
+    """Recompute features + supervised sequences whose window-END is in ``bounds``.
+
+    Features are recomputed per call (the per-fold recompute the brief mandates).
+    To use EVERY row in ``[start, stop)`` as a window END — not just rows beyond a
+    look-back warm-up internal to the slice — features are computed on a
+    LEFT-EXTENDED price span starting ``look_back + _FEATURE_WARMUP`` bars earlier.
+    That left-context consists only of STRICTLY-PAST bars (it never reaches forward
+    of ``stop``), so:
+
+    * for the TRAIN slice it is in-sample history;
+    * for the VAL/TEST slice the extra context lands in the ``>= look_back`` PURGE
+      gap that separates the slices — purged (training-dropped) bars, so a
+      test-positioned window can use them WITHOUT leaking any train/val LABEL.
+
+    The next-day target for a window ending at bar ``t`` is the log-return realized
+    at ``t + 1``. Sequences are emitted ONLY for window-ends inside ``[start, stop)``
+    so train/val/test partitions never share a labeled sample.
+    """
+    from lstmforecast.data import to_log_returns
+
+    start, stop = bounds
+    ctx = look_back + _FEATURE_WARMUP
+    span_start = max(0, start - ctx)
+    sub = prices.iloc[span_start:stop]
+
+    features = engineer_features(sub)
+    returns = to_log_returns(sub)
+    target = returns.shift(-1)  # r_{t+1} aligned to the window-end date t
+    aligned = features.join(target.rename(_TARGET_COL), how="inner").dropna()
+
+    n_feat = max(int(features.shape[1]) if features.ndim == 2 else 1, 1)
+    if aligned.shape[0] <= look_back:
+        return _empty_fold(look_back, n_feat)
+
+    feat = aligned.drop(columns=_TARGET_COL)
+    tgt = aligned[_TARGET_COL]
+    x, y, idx = create_sequences(feat, tgt, look_back=look_back)
+    x_arr = np.asarray(x, dtype="float64")
+    y_arr = _as_float_array(y)
+    if x_arr.ndim != 3 or x_arr.shape[0] == 0:  # degenerate — normalize to empty
+        return _empty_fold(look_back, n_feat)
+
+    # Keep only sequences whose window-END date falls inside THIS slice's date
+    # window, so the left-context bars contribute history but never a label.
+    slice_dates = prices.index[start:stop]
+    keep_arr = np.asarray(idx.isin(slice_dates), dtype=bool)
+    if not keep_arr.any():
+        return _empty_fold(look_back, x_arr.shape[-1])
+    return x_arr[keep_arr], y_arr[keep_arr], idx[keep_arr]
+
+
+def _empty_fold(look_back: int, n_feat: int) -> tuple[FloatArray, FloatArray, pd.Index]:
+    """Return an empty ``(X, y, index)`` triple with a well-formed 3-D ``X``."""
+    empty_x = np.empty((0, look_back, n_feat), dtype="float64")
+    return empty_x, np.empty((0,), dtype="float64"), pd.Index([])
+
+
+def _val_score(y_true: FloatArray, y_pred: FloatArray) -> float:
+    """Return the validation RMSE used to rank HPO configs (lower is better)."""
+    if y_true.shape[0] == 0 or y_pred.shape[0] == 0:
+        return float("inf")
+    n = min(y_true.shape[0], y_pred.shape[0])
+    err = y_true[:n] - y_pred[:n]
+    mse = float(np.mean(err * err))
+    if not np.isfinite(mse):
+        return float("inf")
+    return float(np.sqrt(mse))
+
+
+def _as_float_array(values: object) -> FloatArray:
+    """Coerce arbitrary model/array output to a flat float64 ``ndarray``."""
+    arr = np.asarray(values, dtype="float64")
+    return arr.reshape(-1) if arr.ndim > 1 else arr
+
+
+def _concat_float(parts: list[FloatArray]) -> FloatArray:
+    """Concatenate per-fold float arrays into one OOS series (empty-safe)."""
+    if not parts:
+        return np.empty((0,), dtype="float64")
+    return np.concatenate([p for p in parts]).astype("float64")
+
+
+def _concat_index(parts: list[pd.Index]) -> pd.Index:
+    """Concatenate per-fold date indices into one OOS index (empty-safe)."""
+    nonempty = [p for p in parts if len(p) > 0]
+    if not nonempty:
+        return pd.Index([])
+    out = nonempty[0]
+    for p in nonempty[1:]:
+        out = out.append(p)
+    return out

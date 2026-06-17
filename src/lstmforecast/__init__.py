@@ -62,6 +62,15 @@ from lstmforecast.features.sequences import (
     scale_sequences,
 )
 from lstmforecast.models.baselines import PersistenceForecaster, persistence_returns
+from lstmforecast.models.lstm import LstmConfig
+from lstmforecast.models.onnx_runtime import OnnxForecaster, default_artifact_path
+from lstmforecast.serve import (
+    ForecastRun,
+    ForecastSummary,
+    forecast_from_onnx,
+    run_forecast,
+)
+from lstmforecast.train import TrainResult, train_pipeline
 from lstmforecast.walkforward.costs import FixedBpsCost
 from lstmforecast.walkforward.engine import (
     Fold,
@@ -108,9 +117,19 @@ __all__ = [  # noqa: RUF022 - grouped by domain for readability, not alphabetize
     "engineer_features",
     "fit_scaler",
     "scale_sequences",
-    # models (baseline only; LSTM/ONNX are lazy submodule imports)
+    # models (baseline + config + lazy ONNX serve wrapper; TF stays lazy)
+    "LstmConfig",
+    "OnnxForecaster",
     "PersistenceForecaster",
+    "default_artifact_path",
     "persistence_returns",
+    # train + serve entrypoints (the backend calls run_forecast / forecast_from_onnx)
+    "ForecastRun",
+    "ForecastSummary",
+    "TrainResult",
+    "forecast_from_onnx",
+    "run_forecast",
+    "train_pipeline",
     # walk-forward
     "FixedBpsCost",
     "Fold",

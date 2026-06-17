@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- End-to-end `train.train_pipeline`: synthetic/real → leakage-free walk-forward
+  (per-fold scaler on TRAIN only, ≥`look_back` purge + embargo) → return-space
+  metrics → honest `beats_naive` verdict → ONNX artifact + `RunManifest`. The
+  honest multiplicity count (`n_effective_trials`) equals the HPO grid size.
+- Serve entrypoints the backend calls (onnxruntime only, NEVER TensorFlow):
+  `serve.forecast_from_onnx(features)` and `serve.run_forecast(...)` returning a
+  JSON-safe `summary` (`rmse_return`, `mae_return`, `mase_vs_persistence`,
+  `directional_accuracy`, `dm_pvalue`, `beats_naive`, `n_effective_trials`,
+  `data_source`) plus the two Plotly `{data, layout}` figures.
+- `models/onnx_export.build_native_lstm_onnx`: a TensorFlow-free builder that
+  produces the same `(N, look_back, n_features) → (N, 1)` LSTM-shaped ONNX graph
+  via the `onnx` builder, so the shipped artifact is reproducible without a GPU
+  and the canonical `tf2onnx` path stays the real-data retrain route.
+- Committed, synthetic-random-walk-trained ONNX artifact
+  (`src/lstmforecast/artifacts/lstm_forecast.onnx`, <5 MB) served via onnxruntime.
+
+### Changed
+
+- Activated the headline anti-leakage integration test: on a synthetic random
+  walk the leakage-free pipeline does NOT beat persistence (`MASE ≥ 1`,
+  Diebold-Mariano insignificant, `beats_naive = False`).
+
 ## [0.1.0] - 2026-06-17
 
 ### Added

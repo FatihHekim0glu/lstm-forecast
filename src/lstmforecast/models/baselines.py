@@ -39,7 +39,7 @@ class PersistenceForecaster:
         PersistenceForecaster
             ``self``, for call-chaining parity with the LSTM model.
         """
-        raise NotImplementedError
+        return self
 
     def predict(self, x: FloatArray) -> FloatArray:
         """Predict an all-zeros next-day return vector, one per input sequence.
@@ -60,7 +60,14 @@ class PersistenceForecaster:
         ValidationError
             If ``x`` is not a 3-D tensor.
         """
-        raise NotImplementedError
+        if x.ndim != 3:
+            from lstmforecast._exceptions import ValidationError
+
+            raise ValidationError(
+                f"PersistenceForecaster.predict: x must be a 3-D "
+                f"(n_samples, look_back, n_features) tensor, got ndim={x.ndim}."
+            )
+        return np.zeros(int(x.shape[0]), dtype="float64")
 
 
 def persistence_returns(n_samples: int) -> FloatArray:

@@ -58,16 +58,21 @@ serve = [
     "onnxruntime>=1.17",
 ]
 # Offline training/export path (heavy; never imported in the serve container).
+# ``onnx`` is the model-builder used both by the tf2onnx export and by the
+# TensorFlow-free native artifact builder (``models.onnx_export``).
 train = [
     "tensorflow>=2.16",
     "tf2onnx>=1.16",
+    "onnx>=1.16",
 ]
 # Plotly figure builders (figures serialize to {data, layout} JSON).
 viz = [
     "plotly>=5.20",
     "kaleido>=0.2.1",
 ]
-# Developer + parity-oracle + lint/type/test stack.
+# Developer + parity-oracle + lint/type/test stack. Includes the lean serve stack
+# (onnxruntime) and the onnx builder so the serve / native-export tests run in CI
+# WITHOUT the heavy [train] (TensorFlow) extra.
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
@@ -76,6 +81,8 @@ dev = [
     "mypy>=1.10",
     "pandas-stubs>=2.0",
     "typer>=0.12",
+    "onnxruntime>=1.17",
+    "onnx>=1.16",
 ]
 
 [project.scripts]
@@ -156,6 +163,7 @@ module = [
     "statsmodels.*",
     "tensorflow.*",
     "tf2onnx.*",
+    "onnx.*",
     "onnxruntime.*",
     "diskcache.*",
     "plotly.*",
