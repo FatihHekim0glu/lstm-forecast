@@ -1,0 +1,197 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lstm-forecast"
+version = "0.1.0"
+description = "A leakage-free rebuild of the classic LSTM stock-price-prediction project: predict next-day LOG-RETURNS (not price levels), validate with purged walk-forward, and honestly test against a random-walk baseline — the documented result is that the LSTM does NOT beat naive persistence."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "FatihHekim0glu" }]
+keywords = [
+    "lstm",
+    "time-series",
+    "forecasting",
+    "deep-learning",
+    "quantitative-finance",
+    "honest-null",
+    "leakage-free",
+    "diebold-mariano",
+    "onnx",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+dependencies = [
+    "numpy>=1.26",
+]
+
+[project.urls]
+Homepage = "https://fatihhekimoglu.com"
+Repository = "https://github.com/FatihHekim0glu/lstm-forecast"
+Changelog = "https://github.com/FatihHekim0glu/lstm-forecast/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+# Data generation/loading, feature engineering, and the honest-statistics layer.
+data = [
+    "numpy>=1.26",
+    "pandas>=2.0",
+    "scipy>=1.11",
+    "statsmodels>=0.14",
+    "pyarrow>=15.0",
+    "diskcache>=5.6",
+]
+# Lean inference path: onnxruntime + numpy ONLY (the container — NEVER TensorFlow).
+serve = [
+    "onnxruntime>=1.17",
+]
+# Offline training/export path (heavy; never imported in the serve container).
+train = [
+    "tensorflow>=2.16",
+    "tf2onnx>=1.16",
+]
+# Plotly figure builders (figures serialize to {data, layout} JSON).
+viz = [
+    "plotly>=5.20",
+    "kaleido>=0.2.1",
+]
+# Developer + parity-oracle + lint/type/test stack.
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.100",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "pandas-stubs>=2.0",
+    "typer>=0.12",
+]
+
+[project.scripts]
+lstm-forecast = "lstmforecast.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lstmforecast"]
+# Ship the committed ONNX artifact(s) inside the wheel.
+artifacts = ["src/lstmforecast/artifacts/*.onnx"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/lstmforecast",
+    "tests",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+]
+
+# --------------------------------------------------------------------------- #
+# Ruff                                                                        #
+# --------------------------------------------------------------------------- #
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific
+    "NPY",  # numpy-specific
+    "PD",   # pandas-vet
+]
+ignore = [
+    "E501",    # line length handled by formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["N802", "N803", "N806"]  # math-style names (X, y, T, N) in tests
+
+[tool.ruff.lint.pep8-naming]
+# Math-style single-capital names (sequence tensor X, sample count T/N) are intentional.
+extend-ignore-names = ["N", "T", "X"]
+
+# --------------------------------------------------------------------------- #
+# mypy (strict)                                                               #
+# --------------------------------------------------------------------------- #
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+no_implicit_optional = true
+show_error_codes = true
+files = ["src/lstmforecast"]
+
+# Documented pandas override: pandas-stubs is incomplete for some DataFrame
+# operations; we accept untyped pandas internals at the boundary while keeping
+# our own signatures strictly typed. (House convention: curated pandas suppression.)
+[[tool.mypy.overrides]]
+module = ["pandas.*"]
+follow_imports = "skip"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = [
+    "scipy.*",
+    "statsmodels.*",
+    "tensorflow.*",
+    "tf2onnx.*",
+    "onnxruntime.*",
+    "diskcache.*",
+    "plotly.*",
+    "typer.*",
+]
+ignore_missing_imports = true
+
+# --------------------------------------------------------------------------- #
+# pytest                                                                       #
+# --------------------------------------------------------------------------- #
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "unit: fast isolated unit tests",
+    "property: Hypothesis property-based invariant tests",
+    "parity: validation against an independent reference (Keras/ONNX, indicator oracle)",
+    "regression: pinned-snapshot / locked-behaviour tests",
+    "integration: end-to-end pipeline tests (the random-walk anti-leakage guard)",
+    "slow: long-running tests (the TensorFlow train/export path)",
+]
+
+# --------------------------------------------------------------------------- #
+# Coverage                                                                     #
+# --------------------------------------------------------------------------- #
+[tool.coverage.run]
+branch = true
+source = ["lstmforecast"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "@overload",
+]
