@@ -180,7 +180,11 @@ construction; real data does not change the methodology, only the inputs.
     rebalance date* (with delisted names retained until they leave), and feed that
     time-varying universe into the same walk-forward engine. The walk-forward,
     purge/embargo, and per-fold-scaler machinery are universe-agnostic, so adding
-    a PIT data provider is additive — it does not touch the de-leak core.
+    a PIT data provider is additive — it does not touch the de-leak core. The
+    concrete entry point is a `sp500_universe.py` PIT provider (reconstructing
+    S&P 500 membership-as-of-date, delisted tickers retained) that yields the
+    rebalance-dated constituent set the engine consumes — a drop-in upstream of the
+    existing price loader, leaving `run_walk_forward` and the metrics untouched.
 - **Small models, on purpose.** The LSTM and LSTM+Attention are deliberately tiny
   (few units, few epochs). The point is the methodology and the honest null, not a
   state-of-the-art model; a bigger model on a random walk still cannot beat

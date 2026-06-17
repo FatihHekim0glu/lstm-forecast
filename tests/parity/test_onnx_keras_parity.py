@@ -1,11 +1,15 @@
-"""Parity: the exported ONNX forward pass must match Keras to 1e-5.
+"""Parity + served-path forward determinism for the committed ONNX LSTM.
 
-The exported artifact is the model the container serves via onnxruntime, so the
-ONNX graph MUST reproduce the trained Keras forward pass. This test builds a
-small Keras LSTM, exports it to ONNX via tf2onnx, runs the same batch through
-both engines, and asserts agreement to ``1e-5``. Marked ``slow`` because it
-requires the ``[train]`` extra (TensorFlow + tf2onnx) to produce the Keras
-reference; it is skipped in the default lean test run.
+Two layers:
+
+- ``test_committed_artifact_serves_deterministically`` (DEFAULT suite, onnxruntime
+  ONLY): the shipped ``artifacts/*.onnx`` MUST load and produce finite, stable
+  output across repeated forward passes. This exercises the SERVED model the
+  backend runs every request, so CI covers the served path without TensorFlow.
+- ``test_onnx_matches_keras_within_tolerance`` (``slow``): the exported ONNX graph
+  must reproduce the trained Keras forward pass to ``1e-5``. Marked ``slow`` because
+  it needs the ``[train]`` extra (TensorFlow + tf2onnx) to produce the Keras
+  reference; skipped in the default lean run.
 """
 
 from __future__ import annotations
@@ -17,7 +21,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-pytestmark = [pytest.mark.parity, pytest.mark.slow]
+pytestmark = [pytest.mark.parity]
 
 _HAS_TF = importlib.util.find_spec("tensorflow") is not None
 _HAS_TF2ONNX = importlib.util.find_spec("tf2onnx") is not None
@@ -27,6 +31,45 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     pass
 
 
+@pytest.mark.skipif(not _HAS_ORT, reason="served forward-determinism check needs onnxruntime.")
+def test_committed_artifact_serves_deterministically() -> None:
+    """DEFAULT-suite served-path check: the shipped ONNX LSTM loads + is stable.
+
+    onnxruntime ONLY (no TensorFlow). Loads the committed default artifact, runs a
+    forward pass on a seeded batch through the serve wrapper the backend uses, and
+    asserts the output is the right shape, finite, NON-trivial (a real trained LSTM
+    moves off zero on non-zero input), and bit-stable across a repeat run.
+    """
+    from lstmforecast.models.onnx_runtime import OnnxForecaster, default_artifact_path
+    from lstmforecast.train import _n_features
+
+    artifact = default_artifact_path()
+    if not artifact.is_file():
+        pytest.skip("shipped artifact not present in this checkout")
+
+    look_back, n_features = 60, _n_features()
+    x = (
+        np.random.default_rng(20260617)
+        .standard_normal((8, look_back, n_features))
+        .astype("float64")
+    )
+
+    forecaster = OnnxForecaster(artifact)
+    y1 = forecaster.predict(x)
+    assert y1.shape == (8,)
+    assert np.isfinite(y1).all()
+    # A real trained LSTM produces a non-trivial response on non-zero input
+    # (this is what makes the served beats_naive comparison non-vacuous).
+    assert not np.allclose(y1, 0.0)
+    # Forward determinism: re-running the SAME session reproduces the output exactly.
+    y2 = forecaster.predict(x)
+    np.testing.assert_array_equal(y1, y2)
+    # A freshly-loaded session over the SAME artifact agrees too.
+    y3 = OnnxForecaster(artifact).predict(x)
+    np.testing.assert_allclose(y1, y3, atol=0.0, rtol=0.0)
+
+
+@pytest.mark.slow
 @pytest.mark.skipif(
     not (_HAS_TF and _HAS_TF2ONNX and _HAS_ORT),
     reason="ONNX-vs-Keras parity requires the [train] extra (tensorflow + tf2onnx) and onnxruntime.",

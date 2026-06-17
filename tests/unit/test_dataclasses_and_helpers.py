@@ -125,9 +125,26 @@ def test_norm_sf_helper() -> None:
 def test_onnx_forecaster_is_import_pure_and_path_resolves() -> None:
     # Constructing the forecaster and resolving the artifact path must NOT import
     # onnxruntime (load() is lazy) — this stays on the import-pure serve path.
-    import sys
-
     forecaster = OnnxForecaster()
     assert forecaster.artifact_path.name == "lstm_forecast.onnx"
     assert default_artifact_path().parent.name == "artifacts"
-    assert "onnxruntime" not in sys.modules
+
+    # The import-purity claim is process-global, so a prior in-session serve test
+    # that legitimately loaded onnxruntime would pollute ``sys.modules`` here.
+    # Assert it in a FRESH interpreter instead: constructing the forecaster +
+    # resolving the path imports no inference engine.
+    import subprocess
+    import sys
+
+    code = (
+        "import sys; "
+        "from lstmforecast.models.onnx_runtime import OnnxForecaster, default_artifact_path; "
+        "f = OnnxForecaster(); "
+        "assert f.artifact_path.name == 'lstm_forecast.onnx'; "
+        "assert default_artifact_path().parent.name == 'artifacts'; "
+        "assert 'onnxruntime' not in sys.modules, 'onnxruntime imported by construction'; "
+        "print('IMPORT_PURE_OK')"
+    )
+    proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
+    assert proc.returncode == 0, proc.stderr
+    assert "IMPORT_PURE_OK" in proc.stdout
