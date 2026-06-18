@@ -2,15 +2,15 @@
 
 Covers:
 
-- ``lstmforecast.plots`` — the two figure builders that back the honest story:
-  ``forecast_vs_actual_figure`` (predicted-vs-actual next-day RETURNS — never
+- ``lstmforecast.plots`` - the two figure builders that back the honest story:
+  ``forecast_vs_actual_figure`` (predicted-vs-actual next-day RETURNS - never
   price levels) and ``error_vs_baseline_figure`` (model-vs-persistence error
   bars, equal on a random walk). Every builder must return a plain
   ``{"data", "layout"}`` mapping whose contents are JSON-serializable (no
   numpy/pandas/Plotly object leaks across the API boundary), and we assert real
   numerical structure (trace types, ISO dates, equal-bar NULL) rather than merely
   "it runs". Malformed inputs raise :class:`ValidationError` (mapped to 422).
-- ``lstmforecast.cli`` — ``--help`` lists the three commands, and a tiny synthetic
+- ``lstmforecast.cli`` - ``--help`` lists the three commands, and a tiny synthetic
   ``forecast`` / ``evaluate`` run executes offline WITHOUT TensorFlow (the
   persistence/ONNX serve path), exiting ``0`` and reporting the honest NULL
   (``beats_naive = False``).
@@ -247,13 +247,16 @@ def test_cli_no_args_shows_help() -> None:
 
 @pytest.mark.parametrize("command", ["train", "forecast", "evaluate"])
 def test_cli_each_subcommand_help_exits_zero(command: str) -> None:
-    """Each subcommand exposes a working ``--help`` listing the --data option.
+    """Each subcommand exposes a working ``--help`` that exits zero.
 
     Force a wide, colourless terminal so rich does not truncate the option name
-    (on a narrow CI terminal ``--data`` is rendered as ``--da…`` and the literal
-    substring disappears). With a fixed wide width the assertion checks what it
-    means to: that the ``--data`` option is present in the help.
+    (on a narrow CI terminal ``--data`` is rendered as ``--da...`` and the literal
+    substring disappears) and strip any residual ANSI escape codes before the
+    substring check, because ``NO_COLOR`` is not always honoured and the raw
+    output can still carry ``\x1b[...m`` styling that breaks a naive ``in``.
     """
+    import re
+
     from typer.testing import CliRunner
 
     from lstmforecast.cli import build_app
@@ -263,15 +266,19 @@ def test_cli_each_subcommand_help_exits_zero(command: str) -> None:
         [command, "--help"],
         env={"COLUMNS": "200", "NO_COLOR": "1"},
     )
+    # The contract the name promises: --help exits zero for every subcommand.
     assert result.exit_code == 0, result.output
-    assert "--data" in result.output
+    # Best-effort: with colour codes stripped and a wide width, the --data option
+    # is visible in the help text. All three subcommands expose it.
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+    assert "--data" in plain
 
 
 def test_cli_forecast_synthetic_smoke_run_no_tensorflow() -> None:
     """``forecast`` runs offline on synthetic data via the persistence/ONNX path.
 
     No committed ONNX artifact ships in the test environment, so it falls back to
-    the persistence baseline — and crucially imports NO TensorFlow.
+    the persistence baseline - and crucially imports NO TensorFlow.
     """
     from typer.testing import CliRunner
 
@@ -280,7 +287,7 @@ def test_cli_forecast_synthetic_smoke_run_no_tensorflow() -> None:
     result = CliRunner().invoke(build_app(), ["forecast", "--n-obs", "200", "--seed", "7"])
     assert result.exit_code == 0, result.output
     assert "data source        : synthetic" in result.stdout
-    # Persistence (or onnx) forecaster — never the TF train path.
+    # Persistence (or onnx) forecaster - never the TF train path.
     assert "forecaster         :" in result.stdout
     assert "tensorflow" not in sys.modules
 
@@ -289,7 +296,7 @@ def test_cli_evaluate_synthetic_reports_honest_null() -> None:
     """``evaluate`` reports the honest NULL on synthetic random-walk data.
 
     Persistence vs. persistence gives MASE == 1, so ``beats_naive`` is False and
-    the verdict is ``no_significant_difference`` — the documented deliverable.
+    the verdict is ``no_significant_difference`` - the documented deliverable.
     """
     from typer.testing import CliRunner
 
@@ -350,7 +357,7 @@ def test_cli_module_import_is_side_effect_free() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# CLI: train command (stubbed pipeline — no TensorFlow in these tests)        #
+# CLI: train command (stubbed pipeline - no TensorFlow in these tests)        #
 # --------------------------------------------------------------------------- #
 def _fake_train_result() -> object:
     """A minimal stand-in for ``train.TrainResult`` to exercise the print path."""
