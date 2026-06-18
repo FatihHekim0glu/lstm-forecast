@@ -23,13 +23,13 @@ does **not** beat a random-walk / persistence baseline out-of-sample.
   and per-fold feature recompute.
 - A verdict that is a **pure function** of the inference and is *mechanically*
   prevented from over-claiming.
-- A serve path that runs the trained model via **ONNX / onnxruntime only** — the
+- A serve path that runs the trained model via **ONNX / onnxruntime only**. The
   container never imports TensorFlow.
 
 **Non-goals**
 
 - Beating persistence. The honest finding is that, validated correctly, the LSTM
-  does not — on a random walk it cannot, by construction.
+  does not; on a random walk it cannot, by construction.
 - A great model. The LSTM and LSTM+Attention are deliberately tiny; the point is
   the methodology and the null, not state of the art.
 - A live trading system, or a real-data product. The shipped model trains on a
@@ -74,19 +74,19 @@ import-purity test.
 
 Reused from `hrp-portfolio` (renamed `hrp` → `lstmforecast`):
 
-- `_constants.py` — single source of truth for shared constants.
-- `_validation.py` — input guards (shape, finiteness, sufficient observations).
-- `_typing.py` / `_exceptions.py` — shared aliases (`FloatArray`,
+- `_constants.py`: single source of truth for shared constants.
+- `_validation.py`: input guards (shape, finiteness, sufficient observations).
+- `_typing.py` / `_exceptions.py`: shared aliases (`FloatArray`,
   `SequenceTensor`) and the exception taxonomy (`LstmForecastError` base,
   `ArtifactError`, `ValidationError`, `InsufficientDataError`).
-- `_manifest.py` / `_rng.py` — `RunManifest` (BLAKE2b config-hash) plus seeded
+- `_manifest.py` / `_rng.py`: `RunManifest` (BLAKE2b config-hash) plus seeded
   PCG64 substreams. The same seed yields a byte-identical run.
 
 ### `data.py`
 
 The seeded geometric random-walk price generator (`random_walk_prices`) and the
 `date,close` CSV loader (`load_prices`). On a true random walk the next-day
-return is unpredictable, so the honest null holds by construction — this is the
+return is unpredictable, so the honest null holds by construction. This is the
 data-generating process that makes the anti-leakage integration test meaningful
 ([ADR-0004](decisions/0004-honest-null-vs-persistence.md)).
 
@@ -101,14 +101,14 @@ price level ([ADR-0002](decisions/0002-return-target-not-price.md)).
 
 ### `models/`
 
-- `baselines.py` — the persistence / random-walk forecaster (`r_hat = 0`); the
+- `baselines.py`: the persistence / random-walk forecaster (`r_hat = 0`); the
   floor every model must clear.
-- `lstm.py` — the Keras LSTM and LSTM+Attention `build_model()`. TensorFlow is
+- `lstm.py`: the Keras LSTM and LSTM+Attention `build_model()`. TensorFlow is
   imported **lazily** and only on the `[train]` path; it is never reachable from a
   plain `import lstmforecast`.
-- `onnx_runtime.py` — loads and runs the committed ONNX artifact via onnxruntime
+- `onnx_runtime.py`: loads and runs the committed ONNX artifact via onnxruntime
   (the SERVE path; no TF) ([ADR-0003](decisions/0003-onnx-serve-no-tf.md)).
-- `onnx_export.py` — two equivalent export backends: the canonical Keras→ONNX
+- `onnx_export.py`: two equivalent export backends: the canonical Keras→ONNX
   `tf2onnx` path (real-data retrain) and a TensorFlow-free native `onnx` builder
   that produces the same `(N, look_back, n_features) → (N, 1)` graph so the
   shipped artifact is reproducible without a GPU.
@@ -120,19 +120,19 @@ on TRAIN only** (persisted, applied to val/test), **purge (≥ `look_back`) +
 embargo** at every boundary, and per-fold feature recompute so a warm-up never
 straddles a split ([ADR-0001](decisions/0001-per-fold-scaler-deleak.md)). It is
 generic over the model (a `model_factory` callable), so the persistence baseline
-and the LSTM run through the **same** folds — the only fair comparison.
+and the LSTM run through the **same** folds, the only fair comparison.
 `costs.py` applies a per-side bps cost to the toy return-trading strategy.
 
 ### `evaluation/`
 
-- `metrics.py` — return-space RMSE/MAE, MASE vs. persistence, directional
+- `metrics.py`: return-space RMSE/MAE, MASE vs. persistence, directional
   accuracy with a two-sided binomial test, and the Diebold-Mariano (1995) test
-  vs. the random walk with a Newey–West HAC long-run variance. **No price-level
+  vs. the random walk with a Newey-West HAC long-run variance. **No price-level
   R²** ([ADR-0005](decisions/0005-no-price-level-r2.md)).
-- `verdict.py` — the **pure** `derive_verdict`: `beats_naive` is `True` only when
+- `verdict.py`: the **pure** `derive_verdict`: `beats_naive` is `True` only when
   `MASE < 1` AND the DM test is significant AND directional accuracy is robustly
   above 0.5. Any failure → `NO_SIGNIFICANT_DIFFERENCE`, `beats_naive = False`.
-- `dsr.py` — Deflated / Probabilistic Sharpe with the full kurtosis term and the
+- `dsr.py`: Deflated / Probabilistic Sharpe with the full kurtosis term and the
   true `n_trials` (= HPO-grid size).
 
 ## Data flow through one walk-forward fold
@@ -163,7 +163,7 @@ train slice (prices) ──► per-fold feature recompute (.shift(1), pct_change
 
 The headline comparison is **LSTM vs. persistence**, run through identical folds.
 On the synthetic random walk the model and the baseline collapse to the same
-error, so `MASE = 1.00`, `DM p = 1.00`, and `beats_naive = false` — the
+error, so `MASE = 1.00`, `DM p = 1.00`, and `beats_naive = false`, the
 documented NULL.
 
 ## Key invariants
@@ -197,15 +197,15 @@ Tests are partitioned by intent under `tests/` (markers in `pyproject.toml`),
 with seeded fixtures in `conftest.py` (`random_walk`, `trend_plus_noise`,
 `pure_noise`):
 
-- **`unit/`** — isolated kernels: data generator, baselines, features/sequences,
+- **`unit/`**: isolated kernels: data generator, baselines, features/sequences,
   metrics, DSR + costs, the verdict truth table, infra.
-- **`property/`** (Hypothesis) — future-perturbation invariance (the de-leak),
+- **`property/`** (Hypothesis): future-perturbation invariance (the de-leak),
   shift-equivariance of features, persistence-is-the-floor on pure noise.
-- **`parity/`** — the ONNX-vs-Keras forward pass to `1e-5` (`slow`; needs the
+- **`parity/`**: the ONNX-vs-Keras forward pass to `1e-5` (`slow`; needs the
   `[train]` extra to build the Keras reference).
-- **`regression/`** — the no-lookahead golden test on the walk-forward engine,
+- **`regression/`**: the no-lookahead golden test on the walk-forward engine,
   the DSR `n_trials` + kurtosis term.
-- **`integration/`** — the headline anti-leakage guard: end-to-end on a synthetic
+- **`integration/`**: the headline anti-leakage guard: end-to-end on a synthetic
   random walk the LSTM does **not** beat persistence (`MASE ≥ 1`, DM
   insignificant); the import-purity subprocess test.
 
@@ -221,6 +221,6 @@ The compute core is decoupled from delivery. The backend vendors
 module-level `_SESSION = None` loads the ONNX session lazily on first call.
 Scalars go through `_safe_float`; figures serialize via
 `json.loads(pio.to_json(fig, validate=False))`. The frontend surfaces the
-pure-derived verdict as a prominent **"Beats naive baseline: NO"** badge — the
-first thing a visitor reads — alongside the honest caption "Predicts returns, not
+pure-derived verdict as a prominent **"Beats naive baseline: NO"** badge, the
+first thing a visitor reads, alongside the honest caption "Predicts returns, not
 prices; no price-level R²; does not beat a random walk."

@@ -34,8 +34,8 @@ never the raw price level. Consequences that follow from this choice:
 - **Persistence is the floor.** The natural baseline becomes `r_hat = 0` (a
   random-walk price), which is exactly the persistence forecaster every model is
   measured against ([ADR-0004](0004-honest-null-vs-persistence.md)).
-- **Skill is judged in return space.** All metrics — RMSE/MAE, MASE vs.
-  persistence, directional accuracy, Diebold-Mariano vs. the random walk — operate
+- **Skill is judged in return space.** All metrics (RMSE/MAE, MASE vs.
+  persistence, directional accuracy, Diebold-Mariano vs. the random walk) operate
   on returns. The price-level R² is *banned*
   ([ADR-0005](0005-no-price-level-r2.md)).
 
@@ -45,7 +45,7 @@ never the raw price level. Consequences that follow from this choice:
   that beats persistence in return space genuinely has skill.
 - **Positive.** The setup is directly comparable to the efficient-markets /
   random-walk literature, where return predictability is the live question.
-- **Cost.** Return forecasting is *hard* — and on a random walk it is impossible.
+- **Cost.** Return forecasting is *hard*, and on a random walk it is impossible.
   The result is the documented null rather than a flashy chart. That is the point.
 - **Risk addressed.** "Unit-root-inflated level prediction masquerading as skill"
   is eliminated at the target definition, before any model is trained.

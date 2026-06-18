@@ -11,7 +11,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # 2. Create the env and install the project with the lean extras + dev tooling.
 #    NOTE: the [train] extra (TensorFlow + tf2onnx) is heavy and is NOT needed to
-#    run the test suite — install it only when retraining/exporting the ONNX model.
+#    run the test suite; install it only when retraining/exporting the ONNX model.
 uv venv
 uv pip install -e ".[data,serve,viz,dev]"
 ```
@@ -59,7 +59,7 @@ contributing, preserve the non-negotiables:
 ## Commit hygiene
 
 - Use clear, present-tense commit messages.
-- **Do not** add AI-attribution trailers — no `Co-Authored-By: Claude`,
+- **Do not** add AI-attribution trailers: no `Co-Authored-By: Claude`,
   no "Generated with Claude", no robot-emoji attribution lines. The
   `.github/workflows/no-ai-attribution.yml` guard fails any PR that contains them.
 

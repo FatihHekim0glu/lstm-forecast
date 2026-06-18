@@ -8,8 +8,8 @@
 
 ## Context
 
-The original "predict the stock price with an LSTM" project — the repo this one
-redeems — has a textbook leakage bug: it fits the feature **scaler on the whole
+The original "predict the stock price with an LSTM" project, the repo this one
+redeems, has a textbook leakage bug: it fits the feature **scaler on the whole
 series** (train + validation + test together) *before* splitting. The test set's
 mean and variance therefore bleed into the standardization the model sees at
 train time. The model has effectively peeked at the future scale of the data, and
@@ -55,6 +55,6 @@ the test fails.
 - **Cost.** Per-fold recompute is more expensive than scaling once globally, and
   the purge/embargo gaps reduce usable observations. Both are accepted as the
   price of correctness.
-- **Risk addressed.** "Full-series scaler leakage" — the defect that makes the
-  original project a cautionary tale — cannot recur silently; the property test
+- **Risk addressed.** "Full-series scaler leakage", the defect that makes the
+  original project a cautionary tale, cannot recur silently; the property test
   guards it.
