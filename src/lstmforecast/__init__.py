@@ -1,10 +1,10 @@
-"""lstm-forecast — a leakage-free LSTM next-day RETURN forecaster (honest NULL).
+"""lstm-forecast - a leakage-free LSTM next-day RETURN forecaster (honest NULL).
 
 The explicit redemption of a leaky LSTM stock-price-prediction repo: predict the
 next-day LOG-RETURN (never the price level), validate with a purged, embargoed,
 per-fold-scaled walk-forward, and honestly test against a random-walk /
 persistence baseline. The documented, literature-backed result is that the LSTM
-does NOT beat naive persistence — reported as the deliverable, with no profit
+does NOT beat naive persistence - reported as the deliverable, with no profit
 claim and NO price-level R².
 
 IMPORT PURITY: this package has ZERO import-time side effects and imports NO heavy

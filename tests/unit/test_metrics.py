@@ -3,7 +3,7 @@
 Covers the compute kernels in :mod:`lstmforecast.evaluation.metrics`:
 
 - ``rmse`` / ``mae`` against hand-computed values and a NumPy reference;
-- ``mase_vs_persistence`` — the scaled error whose ``>= 1`` reading is the NULL;
+- ``mase_vs_persistence`` - the scaled error whose ``>= 1`` reading is the NULL;
 - ``directional_accuracy`` + exact binomial p-value (cross-checked to SciPy);
 - ``hac_standard_error`` (Newey-West/Bartlett) and ``diebold_mariano`` on
   fixtures, including the random-walk honest-null behaviour;
@@ -326,7 +326,7 @@ def test_random_walk_metrics_drive_a_false_verdict() -> None:
     """End-to-end on random-walk data: the derived verdict is FALSE.
 
     Feeding a no-skill (persistence) forecast through the real metric bundle and
-    then through the pure verdict yields ``beats_naive = False`` — the honest
+    then through the pure verdict yields ``beats_naive = False`` - the honest
     NULL holding by construction on random-walk data.
     """
     prices = random_walk_prices(n_obs=2000, seed=20260617, s0=100.0, sigma=0.01).to_numpy()

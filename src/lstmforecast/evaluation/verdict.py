@@ -27,12 +27,12 @@ class Verdict(StrEnum):
     """
 
     #: Return-space error is lower (MASE < 1), the DM test is significant, AND
-    #: directional accuracy is robustly above 0.5 — the model beats the random
+    #: directional accuracy is robustly above 0.5 - the model beats the random
     #: walk. (Does NOT occur on random-walk data; that is the point.)
     LSTM_BEATS_NAIVE = "lstm_beats_naive"
 
     #: The model does NOT beat persistence on at least one of the three required
-    #: lines of evidence — the expected, literature-consistent NULL.
+    #: lines of evidence - the expected, literature-consistent NULL.
     NO_SIGNIFICANT_DIFFERENCE = "no_significant_difference"
 
 
@@ -83,7 +83,7 @@ def derive_verdict(
 
     HONESTY REQUIREMENT: this function MUST return ``beats_naive=False`` whenever
     ``mase >= 1`` OR ``dm_pvalue >= alpha`` OR directional accuracy is not above
-    the threshold — regardless of any other consideration. On random-walk data
+    the threshold - regardless of any other consideration. On random-walk data
     these conditions cannot all pass, so the NULL is guaranteed.
 
     Parameters

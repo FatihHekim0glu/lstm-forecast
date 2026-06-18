@@ -124,7 +124,7 @@ def test_norm_sf_helper() -> None:
 
 def test_onnx_forecaster_is_import_pure_and_path_resolves() -> None:
     # Constructing the forecaster and resolving the artifact path must NOT import
-    # onnxruntime (load() is lazy) — this stays on the import-pure serve path.
+    # onnxruntime (load() is lazy) - this stays on the import-pure serve path.
     forecaster = OnnxForecaster()
     assert forecaster.artifact_path.name == "lstm_forecast.onnx"
     assert default_artifact_path().parent.name == "artifacts"

@@ -1,6 +1,6 @@
 """Data generation and loading: synthetic random-walk prices + a CSV loader.
 
-The DEFAULT and SHIPPED data path is a seeded *geometric random walk* — there is
+The DEFAULT and SHIPPED data path is a seeded *geometric random walk* - there is
 no API key and no real market data here, by design. On a true random walk the
 next-day log-return is unpredictable, so a properly-validated LSTM CANNOT beat a
 persistence baseline; the honest NULL holds BY CONSTRUCTION, which is exactly
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 DataSource = Literal["synthetic", "csv"]
 
 # quantcore-candidate: mirrors hrp:data.py synthetic GBM fallback (here the
-# random walk is the PRIMARY, shipped path — not a fallback).
+# random walk is the PRIMARY, shipped path - not a fallback).
 
 
 def _business_index(n_obs: int, start: str = "2015-01-01") -> pd.DatetimeIndex:
@@ -54,7 +54,7 @@ def random_walk_prices(
 
     The log-price follows a driftless random walk
     :math:`\ln P_t = \ln P_{t-1} + \varepsilon_t`, with
-    :math:`\varepsilon_t \sim \mathcal{N}(0, \sigma^2)` i.i.d. — so the next-day
+    :math:`\varepsilon_t \sim \mathcal{N}(0, \sigma^2)` i.i.d. - so the next-day
     log-return :math:`r_{t+1}` is pure white noise and is UNPREDICTABLE from the
     past by construction. This is the data on which the honest NULL must hold: a
     leakage-free LSTM cannot beat persistence here.
@@ -112,7 +112,7 @@ def trend_plus_noise_prices(
     The log-price adds a constant per-step drift to the random walk
     (:math:`\ln P_t = \ln P_{t-1} + \mu + \varepsilon_t`). The drift makes the
     PRICE LEVEL trend (which is precisely why a price-level R² looks deceptively
-    high — the debunked trap), yet the next-day RETURN is still
+    high - the debunked trap), yet the next-day RETURN is still
     ``mu + white noise`` and so remains near-unpredictable in return space.
 
     Parameters
@@ -206,7 +206,7 @@ def to_log_returns(prices: pd.Series) -> pd.Series:
     r"""Convert a price series to next-step log-returns ``r_t = ln(P_t / P_{t-1})``.
 
     NO-LOOKAHEAD REQUIREMENT: returns are computed via ``np.log(prices).diff()``
-    on the raw observed prices (NEVER forward-filled first — ffill-then-diff
+    on the raw observed prices (NEVER forward-filled first - ffill-then-diff
     manufactures spurious zero returns across gaps and leaks information). The
     leading NaN row is dropped.
 

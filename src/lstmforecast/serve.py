@@ -1,12 +1,12 @@
-"""Serve entrypoints the FastAPI backend calls (onnxruntime ONLY — NEVER TF).
+"""Serve entrypoints the FastAPI backend calls (onnxruntime ONLY - NEVER TF).
 
 This is the inference surface the hosted tool router invokes. It runs the whole
 honest pipeline WITHOUT TensorFlow:
 
-- :func:`forecast_from_onnx` — load the committed ONNX artifact via onnxruntime
+- :func:`forecast_from_onnx` - load the committed ONNX artifact via onnxruntime
   and run a forward pass on a pre-scaled sequence tensor (a thin, typed wrapper
   over :class:`lstmforecast.models.onnx_runtime.OnnxForecaster`).
-- :func:`run_forecast` — the high-level backend entrypoint: build/load a price
+- :func:`run_forecast` - the high-level backend entrypoint: build/load a price
   series, run the leakage-free walk-forward (per-fold scaler, purge, embargo) with
   the committed ONNX LSTM as the MODEL arm, evaluate that LSTM vs. persistence in
   RETURN space, derive the honest ``beats_naive`` verdict, and return a JSON-safe
@@ -165,12 +165,12 @@ def run_forecast(
     scaler fit on TRAIN only, ``>= look_back`` purge, embargo) with the committed
     ONNX LSTM as the MODEL arm, evaluates the stacked OOS LSTM forecasts against
     the persistence baseline in RETURN space, derives the honest ``beats_naive``
-    verdict, and assembles the two Plotly figures. Serves via onnxruntime ONLY —
+    verdict, and assembles the two Plotly figures. Serves via onnxruntime ONLY -
     TensorFlow is never imported. NO price-level R² anywhere.
 
     The committed ONNX artifact is loaded eagerly (via onnxruntime) and its real
     forward pass produces the OOS model predictions on each fold's per-fold-scaled
-    sequences — the served metrics are the genuine LSTM-vs-persistence comparison,
+    sequences - the served metrics are the genuine LSTM-vs-persistence comparison,
     not persistence-vs-persistence. If the artifact is missing or corrupt an
     :class:`~lstmforecast._exceptions.ArtifactError` is raised (a blocker) rather
     than silently falling back to persistence.
@@ -196,7 +196,7 @@ def run_forecast(
     Raises
     ------
     ArtifactError
-        If the committed ONNX artifact is missing or cannot be loaded — surfaced
+        If the committed ONNX artifact is missing or cannot be loaded - surfaced
         as a blocker so the served metrics are never silently computed from
         persistence instead of the LSTM.
     ValidationError

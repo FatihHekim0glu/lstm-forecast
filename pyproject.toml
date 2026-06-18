@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "lstm-forecast"
 version = "0.1.0"
-description = "A leakage-free rebuild of the classic LSTM stock-price-prediction project: predict next-day LOG-RETURNS (not price levels), validate with purged walk-forward, and honestly test against a random-walk baseline — the documented result is that the LSTM does NOT beat naive persistence."
+description = "A leakage-free rebuild of the classic LSTM stock-price-prediction project: predict next-day LOG-RETURNS (not price levels), validate with purged walk-forward, and honestly test against a random-walk baseline - the documented result is that the LSTM does NOT beat naive persistence."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -53,7 +53,7 @@ data = [
     "pyarrow>=15.0",
     "diskcache>=5.6",
 ]
-# Lean inference path: onnxruntime + numpy ONLY (the container — NEVER TensorFlow).
+# Lean inference path: onnxruntime + numpy ONLY (the container - NEVER TensorFlow).
 serve = [
     "onnxruntime>=1.17",
 ]

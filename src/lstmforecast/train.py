@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 #: A small, fixed HPO grid whose SIZE is the honest multiplicity count
 #: (``n_effective_trials``) fed to the Deflated Sharpe. Two architectures times
-#: two unit sizes = four configurations explored — every one of which is scored on
+#: two unit sizes = four configurations explored - every one of which is scored on
 #: a validation slice, not just the selected one.
 _HPO_GRID: tuple[dict[str, Any], ...] = (
     {"architecture": "vanilla", "units": 8},
@@ -100,8 +100,8 @@ def train_pipeline(
 ) -> TrainResult:
     """Run the full leakage-free training pipeline and (optionally) export ONNX.
 
-    Default path (``data_path=None``) trains on a seeded synthetic random walk —
-    the SHIPPED model — so the honest NULL holds by construction. Pass
+    Default path (``data_path=None``) trains on a seeded synthetic random walk -
+    the SHIPPED model - so the honest NULL holds by construction. Pass
     ``data_path`` to retrain on a real ``date,close`` CSV.
 
     Steps: build/load prices -> :func:`lstmforecast.walkforward.run_walk_forward`
@@ -278,10 +278,10 @@ def _oos_model_factory(artifact_path: str | Path) -> Any:
 
     The MODEL arm is the trained LSTM run through onnxruntime on each fold's
     per-fold-scaled ``look_back`` sequences (the SAME engine the backend serves),
-    so the walk-forward metrics are a genuine LSTM-vs-persistence comparison — the
+    so the walk-forward metrics are a genuine LSTM-vs-persistence comparison - the
     LSTM truly runs, never persistence-vs-persistence. On a random walk the next-day
     return is unpredictable, so the LSTM's OOS forecast carries no signal and lands
-    ``MASE >= ~1`` with an insignificant (or wrong-signed) Diebold-Mariano test —
+    ``MASE >= ~1`` with an insignificant (or wrong-signed) Diebold-Mariano test -
     the documented NULL, but NON-vacuously.
 
     A single :class:`~lstmforecast.models.onnx_runtime.OnnxForecaster` is shared
@@ -342,7 +342,7 @@ def _final_training_tensors(prices: pd.Series, config: Any) -> tuple[Any, Any]:
     """Build pre-scaled ``(X, y)`` train tensors for the final exported LSTM.
 
     Recomputes features over the WHOLE series, fits the scaler on those rows, and
-    builds ``look_back`` sequences — used only on the ``[train]`` export branch to
+    builds ``look_back`` sequences - used only on the ``[train]`` export branch to
     fit the final Keras model. (The leakage-free OOS *evaluation* is the
     walk-forward above; this final fit exists purely to produce the shipped
     artifact.)

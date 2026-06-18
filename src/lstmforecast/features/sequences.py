@@ -31,9 +31,9 @@ def create_sequences(
     For each end-bar position ``t`` with ``t >= look_back - 1`` and a defined
     next-day target, emits one sample:
 
-    - ``X[i] = features.iloc[t - look_back + 1 : t + 1].to_numpy()`` — the trailing
+    - ``X[i] = features.iloc[t - look_back + 1 : t + 1].to_numpy()`` - the trailing
       ``look_back`` feature rows up to and INCLUDING bar ``t``;
-    - ``y[i] = target.loc[<date of r_{t+1}>]`` — the NEXT-day return.
+    - ``y[i] = target.loc[<date of r_{t+1}>]`` - the NEXT-day return.
 
     The returned ``index`` labels each sample by the date of its target
     ``r_{t+1}``, so callers can align predictions to dates and apply the
@@ -168,7 +168,7 @@ def fit_scaler(train_features: FloatArray) -> tuple[FloatArray, FloatArray]:
     Returns ``(mean, std)`` over the flattened ``(n_train_samples * look_back,
     n_features)`` train rows, with ``std`` floored at a small positive epsilon to
     guard constant columns. This is the SINGLE place scaler statistics are
-    estimated, and it is called with train-fold data exclusively — the headline
+    estimated, and it is called with train-fold data exclusively - the headline
     fix for the original repo's full-series-scaler leakage bug.
 
     Parameters

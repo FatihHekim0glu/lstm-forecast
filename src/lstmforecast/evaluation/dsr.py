@@ -1,7 +1,7 @@
 """Probabilistic and Deflated Sharpe ratios (Bailey & Lopez de Prado, 2014).
 
 These overfitting guards adjust a realized Sharpe ratio for sample length,
-non-normality (skew and kurtosis), and — for the Deflated Sharpe — the number of
+non-normality (skew and kurtosis), and - for the Deflated Sharpe - the number of
 configurations tried (multiple-testing / selection bias). The Deflated Sharpe is
 the honest yardstick that counts the FULL configuration grid as ``n_trials``.
 
@@ -191,7 +191,7 @@ def deflated_sharpe_ratio(
 
     HONESTY REQUIREMENT: ``n_trials`` must count the FULL explored LSTM HPO grid
     (#architectures {vanilla, attention} x #units x #look_back windows x #epochs
-    x #learning-rates x #cost-levels) — i.e. every configuration ever scored on a
+    x #learning-rates x #cost-levels) - i.e. every configuration ever scored on a
     validation slice, not just the one selected. The PSR uses the FULL
     ``(\gamma_4)`` kurtosis term. The DSR is non-increasing in ``n_trials``
     (monotonicity asserted in the property suite).

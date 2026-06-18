@@ -30,7 +30,7 @@ ReturnLike: TypeAlias = "pd.Series | NDArray[np.float64]"
 FeatureFrameLike: TypeAlias = "pd.DataFrame | NDArray[np.float64]"
 
 #: A 3-D supervised sequence tensor shaped ``(n_samples, look_back, n_features)``
-#: — the canonical LSTM input produced by ``features.sequences.create_sequences``.
+#: - the canonical LSTM input produced by ``features.sequences.create_sequences``.
 SequenceTensor: TypeAlias = NDArray[np.float64]
 
 #: A float64 numpy array of unspecified shape (compute-kernel intermediate).

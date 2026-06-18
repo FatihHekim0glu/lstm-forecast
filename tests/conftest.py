@@ -4,13 +4,13 @@ Every fixture is deterministic (driven by :func:`lstmforecast._rng.make_rng` /
 the seeded data generators) and returns pandas objects, so tests across the suite
 share identical synthetic data with known structure:
 
-- ``random_walk`` — a driftless geometric random-walk price series. On this data
+- ``random_walk`` - a driftless geometric random-walk price series. On this data
   the next-day return is unpredictable, so a leakage-free LSTM CANNOT beat
-  persistence — the honest NULL holds by construction (the anti-leakage guard).
-- ``trend_plus_noise`` — a random walk PLUS a constant drift. The price LEVEL
-  trends (which is exactly why a price-level R² is deceptive — the debunked
+  persistence - the honest NULL holds by construction (the anti-leakage guard).
+- ``trend_plus_noise`` - a random walk PLUS a constant drift. The price LEVEL
+  trends (which is exactly why a price-level R² is deceptive - the debunked
   trap), yet the next-day RETURN stays near-unpredictable.
-- ``pure_noise`` — an i.i.d. zero-mean Gaussian RETURN series; the null on which
+- ``pure_noise`` - an i.i.d. zero-mean Gaussian RETURN series; the null on which
   persistence (``r_hat = 0``) is provably the error-minimizing point forecast.
 
 Importing this module has no side effects beyond fixture registration (the

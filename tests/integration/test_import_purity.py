@@ -5,7 +5,7 @@ Two guards:
 1. ``import lstmforecast`` must NOT import TensorFlow or onnxruntime (the package
    is import-pure; heavy deps load lazily inside functions only).
 
-2. The headline anti-leakage guard — on synthetic random-walk data the leakage-free
+2. The headline anti-leakage guard - on synthetic random-walk data the leakage-free
    walk-forward forecaster (the REAL ONNX LSTM, run via onnxruntime) must NOT beat
    persistence (``MASE >= ~1``, the Diebold-Mariano test never significantly in the
    model's FAVOUR, so ``beats_naive`` is ``False``). If a future change makes the
@@ -101,7 +101,7 @@ def test_lstm_does_not_beat_persistence_on_random_walk() -> None:
     # only tie or lose, so the DM statistic is never significantly negative.
     model_significantly_beats = metrics.dm_statistic < 0.0 and metrics.dm_pvalue < 0.05
     assert not model_significantly_beats
-    # Therefore the honest verdict is False — by construction, on random-walk data.
+    # Therefore the honest verdict is False - by construction, on random-walk data.
     assert result.verdict.beats_naive is False
     # And the honest multiplicity count equals the explored HPO grid size.
     assert result.n_effective_trials >= 1
@@ -113,7 +113,7 @@ def test_run_forecast_summary_is_json_safe_and_null_on_random_walk() -> None:
 
     Exercises the serve path the FastAPI router calls: every summary scalar is a
     native float/bool/int, the figures are ``{data, layout}`` dicts, and
-    ``beats_naive`` is ``False`` on synthetic random-walk data — with NO
+    ``beats_naive`` is ``False`` on synthetic random-walk data - with NO
     price-level R² anywhere in the payload.
     """
     from lstmforecast.serve import run_forecast
@@ -139,14 +139,14 @@ def test_run_forecast_actually_runs_the_onnx_lstm_not_persistence() -> None:
     """INTEGRITY: the served metrics come from the ONNX LSTM, not persistence.
 
     Runs ``run_forecast`` end-to-end on a seeded synthetic random walk and proves
-    the MODEL arm genuinely executed the committed ONNX LSTM through onnxruntime —
+    the MODEL arm genuinely executed the committed ONNX LSTM through onnxruntime -
     NOT the persistence baseline (which would make ``beats_naive`` vacuous,
     persistence-vs-persistence):
 
-    * ``meta["served_via"] == "onnx"`` — the served path used the ONNX model;
+    * ``meta["served_via"] == "onnx"`` - the served path used the ONNX model;
     * the OOS model forecast is NOT identically the persistence ``r_hat = 0`` (a
       real LSTM forward pass moves off zero), AND it differs from the all-zero
-      naive column — so the LSTM truly ran;
+      naive column - so the LSTM truly ran;
     * yet on a random walk it still does NOT beat persistence: ``MASE >= ~1`` and
       ``beats_naive`` is ``False`` (the honest NULL, now NON-vacuously).
     """
@@ -161,7 +161,7 @@ def test_run_forecast_actually_runs_the_onnx_lstm_not_persistence() -> None:
     assert run.meta["served_via"] == "onnx"
 
     # Recompute the stacked OOS model predictions to prove the LSTM forecast is a
-    # genuine, non-trivial forward pass — not the persistence r_hat=0 column.
+    # genuine, non-trivial forward pass - not the persistence r_hat=0 column.
     from lstmforecast.data import random_walk_prices
     from lstmforecast.models.onnx_runtime import (
         OnnxForecaster,
