@@ -12,7 +12,7 @@ is the **price-level R²**: the coefficient of determination of predicted vs.
 actual *price levels*. It is routinely reported as 0.95+ and presented as proof
 the model "works."
 
-It is a trap. A price series has a **unit root** — it is integrated of order one —
+It is a trap. A price series has a **unit root** (it is integrated of order one),
 so it is dominated by its own lag. Predicting `P_{t+1} ≈ P_t` (i.e. doing
 *nothing*) already explains almost all of the level's variance, because that
 variance *is* the trend. A high level R² therefore certifies that the series
@@ -29,11 +29,11 @@ All skill is judged in **return space** ([ADR-0002](0002-return-target-not-price
 - return-space RMSE / MAE,
 - **MASE vs. persistence** (`≥ 1` ⇒ no improvement over the random walk),
 - directional accuracy with a two-sided binomial test,
-- the **Diebold-Mariano** (1995) test vs. the random walk, with a Newey–West HAC
+- the **Diebold-Mariano** (1995) test vs. the random walk, with a Newey-West HAC
   long-run variance.
 
 This ADR exists so the trap is documented **once, explicitly**, as a debunked
-metric — and so the absence of a level R² is a deliberate, defensible choice
+metric, and so the absence of a level R² is a deliberate, defensible choice
 rather than an oversight.
 
 ## Consequences
@@ -43,6 +43,6 @@ rather than an oversight.
 - **Positive.** Readers who expect the familiar "R² = 0.97" chart get an explicit
   explanation of why it is meaningless instead.
 - **Cost.** The project's headline numbers look modest (MASE = 1.00) compared to a
-  level-R² showcase. That honesty is the deliverable.
-- **Risk addressed.** "Reporting a unit-root-inflated R² as forecasting skill" —
-  the defining mistake of the original repo — is structurally excluded.
+  level-R² display. That honesty is the deliverable.
+- **Risk addressed.** "Reporting a unit-root-inflated R² as forecasting skill",
+  the defining mistake of the original repo, is structurally excluded.

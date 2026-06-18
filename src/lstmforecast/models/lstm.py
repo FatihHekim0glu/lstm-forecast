@@ -1,9 +1,9 @@
-"""Keras LSTM (and LSTM+Attention) builders — the TRAIN-ONLY path.
+"""Keras LSTM (and LSTM+Attention) builders - the TRAIN-ONLY path.
 
 TensorFlow / Keras is the heaviest dependency in the project and is NEVER on the
 import path of ``lstmforecast``: it is imported LAZILY inside the functions here,
 which run only during offline training (the ``[train]`` extra). The container and
-the FastAPI router never import this module — they serve via
+the FastAPI router never import this module - they serve via
 :mod:`lstmforecast.models.onnx_runtime`.
 
 Models are intentionally small (few units, few epochs): the deliverable is the
@@ -225,7 +225,7 @@ def export_onnx(model: keras.Model, path: str, *, config: LstmConfig) -> str:
 
     LAZY IMPORT: tensorflow and tf2onnx are imported inside this function. The
     exported graph is the artifact committed under
-    ``src/lstmforecast/artifacts/`` and served by onnxruntime — the container
+    ``src/lstmforecast/artifacts/`` and served by onnxruntime - the container
     never imports TF. The ONNX forward pass must match the Keras output to 1e-5
     (the parity test).
 

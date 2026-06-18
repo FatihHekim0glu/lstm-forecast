@@ -3,14 +3,14 @@
 These Hypothesis tests pin the no-lookahead guarantees that make this project the
 leakage-free redemption it claims to be:
 
-- **future-perturbation invariance** — perturbing a price bar at position ``t`` (or
+- **future-perturbation invariance** - perturbing a price bar at position ``t`` (or
   any later bar) never changes the engineered feature row at ``t`` or earlier,
   because every feature is lagged with ``.shift(1)`` to depend only on strictly
   past bars;
-- **shift-equivariance** — engineering features on a price series and on the same
+- **shift-equivariance** - engineering features on a price series and on the same
   series shifted forward in time yields the same feature values, merely relabelled
   by the new dates (the kernels are time-translation invariant);
-- **sequence/target alignment** — :func:`create_sequences` never folds a sample's
+- **sequence/target alignment** - :func:`create_sequences` never folds a sample's
   own label into its window (the off-by-one leak), labels each window by the date
   of its next-day target, and the train-fold scaler is invariant to test rows.
 """
@@ -59,7 +59,7 @@ def test_future_perturbation_invariance(seed: int, perturb_pos: int, factor: flo
 
     date_t = prices.index[perturb_pos]
     # Feature rows dated at or before the perturbed bar must be byte-for-byte equal
-    # (same surviving dates, identical values) — no future information leaked back.
+    # (same surviving dates, identical values) - no future information leaked back.
     unaffected = base.index[base.index <= date_t]
     common = unaffected.intersection(after.index)
     assert len(common) == len(unaffected)
@@ -107,7 +107,7 @@ def test_sequence_target_alignment_has_no_off_by_one_leak(
 
     Using strictly increasing sentinel features/targets, the last row of each
     window must equal the feature row immediately preceding the label row, and the
-    label must equal the target at the next position — so a sample can never
+    label must equal the target at the next position - so a sample can never
     contain its own next-day target (the off-by-one leak the original repo had).
     """
     if n_rows < look_back + 1:
@@ -147,7 +147,7 @@ def test_train_scaler_is_invariant_to_test_rows(seed: int, test_perturb: float) 
     """The TRAIN-fold scaler ignores val/test rows entirely (the leakage fix).
 
     Fitting the standardizer on the train slice and then mangling the held-out
-    rows must not move the fitted ``(mean, std)`` — statistics are estimated from
+    rows must not move the fitted ``(mean, std)`` - statistics are estimated from
     train data exclusively, never from the data the model is judged on.
     """
     prices = random_walk_prices(n_obs=400, seed=seed)

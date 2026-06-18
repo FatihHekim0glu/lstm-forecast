@@ -1,4 +1,4 @@
-"""Persistence / random-walk baseline — the floor the LSTM must beat.
+"""Persistence / random-walk baseline - the floor the LSTM must beat.
 
 The persistence forecaster predicts the next-day log-return as ``0`` (equivalently
 the random-walk price forecast ``P_hat_{t+1} = P_t``). On an efficient /

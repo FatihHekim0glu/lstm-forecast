@@ -8,15 +8,15 @@ backing the ``lstm-forecast`` console script.
 
 The three commands map to the honest workflow:
 
-- ``train``    — run the end-to-end leakage-free pipeline (synthetic random walk
+- ``train``    - run the end-to-end leakage-free pipeline (synthetic random walk
   by default, or a real ``date,close`` CSV) and export the ONNX artifact. This is
   the only command that may touch TensorFlow, and only via the lazy ``[train]``
   path inside :mod:`lstmforecast.train`.
-- ``forecast`` — produce next-day RETURN forecasts on a price series WITHOUT
+- ``forecast`` - produce next-day RETURN forecasts on a price series WITHOUT
   TensorFlow: it serves the committed ONNX artifact via onnxruntime when present,
   otherwise it falls back to the persistence baseline (``r_hat = 0``). Either way
   no training engine is imported.
-- ``evaluate`` — compute the return-space metric bundle (RMSE/MAE, MASE vs.
+- ``evaluate`` - compute the return-space metric bundle (RMSE/MAE, MASE vs.
   persistence, directional accuracy) and the derived ``beats_naive`` verdict for a
   forecast series, with NO price-level R² anywhere.
 

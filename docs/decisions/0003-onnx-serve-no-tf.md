@@ -1,4 +1,4 @@
-# ADR-0003: Serve via ONNX / onnxruntime — TensorFlow is train-only
+# ADR-0003: Serve via ONNX / onnxruntime, TensorFlow is train-only
 
 - **Status:** Accepted
 - **Date:** 2026-06-17
@@ -10,8 +10,8 @@
 The model is an LSTM (and LSTM+Attention) built and trained with Keras /
 TensorFlow. But the hosted tool runs in a small, shared API container alongside
 the other portfolio tools. TensorFlow is a heavy dependency (hundreds of MB,
-slow cold start, large memory footprint) and importing it at request time — or at
-package import time — would be unacceptable for a lean inference service. The
+slow cold start, large memory footprint) and importing it at request time, or at
+package import time, would be unacceptable for a lean inference service. The
 package must also be **import-pure**: `import lstmforecast` must not pull in
 TensorFlow, an inference engine, or any I/O.
 
@@ -52,4 +52,4 @@ subprocess test verifies no import-time side effects.
 - **Cost.** Two export backends to maintain, and an ONNX/Keras parity test that
   needs the `[train]` extra (so it is marked `slow` and skipped in the lean run).
 - **Risk addressed.** "TensorFlow leaks into the inference container / the package
-  is not import-pure" — both are structurally prevented.
+  is not import-pure": both are structurally prevented.

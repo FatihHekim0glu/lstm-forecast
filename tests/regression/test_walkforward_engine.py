@@ -34,7 +34,7 @@ pytestmark = pytest.mark.regression
 
 
 # --------------------------------------------------------------------------- #
-# make_folds — the no-lookahead golden contract                               #
+# make_folds - the no-lookahead golden contract                               #
 # --------------------------------------------------------------------------- #
 
 _GOLDEN_CFG = WalkForwardConfig(
@@ -66,7 +66,7 @@ def test_make_folds_purge_gap_never_lets_a_window_straddle_a_boundary() -> None:
     for f in folds:
         # A >= look_back gap between consecutive slices means a look_back-length
         # window ending at the first row of the later slice cannot reach the
-        # earlier slice — no window straddles the boundary.
+        # earlier slice - no window straddles the boundary.
         assert f.val[0] - f.train[1] >= _GOLDEN_CFG.look_back
         assert f.test[0] - f.val[1] >= _GOLDEN_CFG.look_back
 
@@ -236,7 +236,7 @@ class _MeanShiftModel:
 
     ``fit`` stores the per-feature mean of the (already-scaled) train inputs so a
     test can read back EXACTLY what statistics the engine fed the model. ``predict``
-    returns the learned train-mean target for every test sample — a deterministic
+    returns the learned train-mean target for every test sample - a deterministic
     function of TRAIN data only, so its test predictions must be invariant to any
     change in the test rows.
     """
@@ -268,7 +268,7 @@ def _prices(n: int = 1200, seed: int = 11) -> pd.Series:
 
 
 # --------------------------------------------------------------------------- #
-# run_walk_forward — n_trials, identical OOS index, scaler-on-train-only       #
+# run_walk_forward - n_trials, identical OOS index, scaler-on-train-only       #
 # --------------------------------------------------------------------------- #
 
 
@@ -324,7 +324,7 @@ def test_scaler_fit_on_train_only_future_perturbation_invariance() -> None:
 
     This is THE de-leak guarantee: the standardizer's mean/std come from the train
     slice ONLY, so corrupting later (test) bars cannot change what the model was
-    trained on, nor the train-mean it learned, nor — for a train-only forecaster —
+    trained on, nor the train-mean it learned, nor - for a train-only forecaster -
     its test predictions.
     """
     prices = _prices()
@@ -347,7 +347,7 @@ def test_scaler_fit_on_train_only_future_perturbation_invariance() -> None:
     perturbed.iloc[t_start:t_stop] = perturbed.iloc[t_start:t_stop].to_numpy() * shock
 
     # Sanity: the perturbation actually moves the realized OOS test returns (so
-    # this invariance test has teeth — a leak WOULD be observable).
+    # this invariance test has teeth - a leak WOULD be observable).
     _MeanShiftModel.seen_train_mean = None
     dirty = wf.run_walk_forward(perturbed, lambda p: _MeanShiftModel(p), _GOLDEN_CFG)
     dirty_scaler_mean = _MeanShiftModel.seen_train_mean

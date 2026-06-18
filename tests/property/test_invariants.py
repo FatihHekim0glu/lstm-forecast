@@ -52,7 +52,7 @@ def test_dsr_non_increasing_in_n_trials(sharpe: float, n1: int, extra: int) -> N
 @settings(max_examples=40, deadline=None)
 def test_mase_ge_one_never_beats_naive(mase: float, dm_pvalue: float, da: float) -> None:
     # No matter how favourable DM / directional accuracy look, MASE >= 1 forbids
-    # a positive verdict — the honest-null gate.
+    # a positive verdict - the honest-null gate.
     assert derive_verdict(mase=mase, dm_pvalue=dm_pvalue, directional_accuracy=da).beats_naive is (
         False
     )

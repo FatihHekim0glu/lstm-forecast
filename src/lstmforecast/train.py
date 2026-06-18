@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 #: A small, fixed HPO grid whose SIZE is the honest multiplicity count
 #: (``n_effective_trials``) fed to the Deflated Sharpe. Two architectures times
-#: two unit sizes = four configurations explored — every one of which is scored on
+#: two unit sizes = four configurations explored - every one of which is scored on
 #: a validation slice, not just the selected one.
 _HPO_GRID: tuple[dict[str, Any], ...] = (
     {"architecture": "vanilla", "units": 8},
@@ -100,8 +100,8 @@ def train_pipeline(
 ) -> TrainResult:
     """Run the full leakage-free training pipeline and (optionally) export ONNX.
 
-    Default path (``data_path=None``) trains on a seeded synthetic random walk —
-    the SHIPPED model — so the honest NULL holds by construction. Pass
+    Default path (``data_path=None``) trains on a seeded synthetic random walk -
+    the SHIPPED model - so the honest NULL holds by construction. Pass
     ``data_path`` to retrain on a real ``date,close`` CSV.
 
     Steps: build/load prices -> :func:`lstmforecast.walkforward.run_walk_forward`
@@ -158,7 +158,11 @@ def train_pipeline(
     wf_config = _walk_forward_config(n_prices, int(look_back))
     grid = [dict(params) for params in _HPO_GRID]
 
-    oos_artifact = default_artifact_path() if artifact_path is None else artifact_path
+    # The OOS walk-forward MODEL arm serves the committed (already-trained) ONNX
+    # artifact, which must exist now. The export target (below) is a separate path:
+    # a caller-supplied ``artifact_path`` may be a destination that does not exist
+    # yet, so it must never drive the evaluation.
+    oos_artifact = default_artifact_path()
     wf_result = run_walk_forward(
         prices,
         _oos_model_factory(oos_artifact),
@@ -184,8 +188,10 @@ def train_pipeline(
     n_effective_trials = int(wf_result.n_trials)
 
     # --- 5. (Optional) fit a final small LSTM and export the <5MB ONNX artifact.
+    # The export destination is the caller-supplied path, or the committed default
+    # (retrain-in-place) when none is given.
     final_config = LstmConfig(look_back=int(look_back), n_features=_n_features(), seed=int(seed))
-    target_path = oos_artifact
+    target_path = default_artifact_path() if artifact_path is None else artifact_path
     exported_path = ""
     export_backend = "skipped"
     if export:
@@ -272,10 +278,10 @@ def _oos_model_factory(artifact_path: str | Path) -> Any:
 
     The MODEL arm is the trained LSTM run through onnxruntime on each fold's
     per-fold-scaled ``look_back`` sequences (the SAME engine the backend serves),
-    so the walk-forward metrics are a genuine LSTM-vs-persistence comparison — the
+    so the walk-forward metrics are a genuine LSTM-vs-persistence comparison - the
     LSTM truly runs, never persistence-vs-persistence. On a random walk the next-day
     return is unpredictable, so the LSTM's OOS forecast carries no signal and lands
-    ``MASE >= ~1`` with an insignificant (or wrong-signed) Diebold-Mariano test —
+    ``MASE >= ~1`` with an insignificant (or wrong-signed) Diebold-Mariano test -
     the documented NULL, but NON-vacuously.
 
     A single :class:`~lstmforecast.models.onnx_runtime.OnnxForecaster` is shared
@@ -336,7 +342,7 @@ def _final_training_tensors(prices: pd.Series, config: Any) -> tuple[Any, Any]:
     """Build pre-scaled ``(X, y)`` train tensors for the final exported LSTM.
 
     Recomputes features over the WHOLE series, fits the scaler on those rows, and
-    builds ``look_back`` sequences — used only on the ``[train]`` export branch to
+    builds ``look_back`` sequences - used only on the ``[train]`` export branch to
     fit the final Keras model. (The leakage-free OOS *evaluation* is the
     walk-forward above; this final fit exists purely to produce the shipped
     artifact.)

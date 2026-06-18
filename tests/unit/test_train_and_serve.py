@@ -3,13 +3,13 @@ TensorFlow-free native ONNX artifact builder.
 
 These exercise the wiring the backend depends on WITHOUT TensorFlow:
 
-- ``lstmforecast.train.train_pipeline`` — synthetic/CSV -> leakage-free
+- ``lstmforecast.train.train_pipeline`` - synthetic/CSV -> leakage-free
   walk-forward -> return-space metrics -> honest verdict -> (optional) ONNX export
   + RunManifest. On random-walk data the verdict MUST be ``beats_naive=False``.
-- ``lstmforecast.serve.run_forecast`` / ``forecast_from_onnx`` — the FastAPI
+- ``lstmforecast.serve.run_forecast`` / ``forecast_from_onnx`` - the FastAPI
   entrypoints: a JSON-safe summary (no price-level R^2), two ``{data, layout}``
   figures, and onnxruntime-only inference over the committed artifact.
-- ``lstmforecast.models.onnx_export.build_native_lstm_onnx`` — builds a tiny,
+- ``lstmforecast.models.onnx_export.build_native_lstm_onnx`` - builds a tiny,
   seeded, runnable LSTM-shaped ONNX graph via the ``onnx`` builder (skipped when
   ``onnx`` is unavailable).
 

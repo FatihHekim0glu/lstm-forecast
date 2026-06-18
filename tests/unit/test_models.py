@@ -33,7 +33,7 @@ _HAS_TF2ONNX = importlib.util.find_spec("tf2onnx") is not None
 
 
 # --------------------------------------------------------------------------- #
-# Persistence baseline (always runs — pure numpy)                             #
+# Persistence baseline (always runs - pure numpy)                             #
 # --------------------------------------------------------------------------- #
 def test_persistence_fit_returns_self() -> None:
     model = PersistenceForecaster()
@@ -68,7 +68,7 @@ def test_persistence_predict_requires_3d() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# LstmConfig validation (no TF needed — __post_init__ is pure)                #
+# LstmConfig validation (no TF needed - __post_init__ is pure)                #
 # --------------------------------------------------------------------------- #
 def test_lstm_config_defaults_and_to_dict() -> None:
     cfg = LstmConfig()

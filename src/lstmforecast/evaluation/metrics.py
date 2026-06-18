@@ -2,16 +2,16 @@
 
 Everything here lives in RETURN space, where the honest comparison happens:
 
-- :func:`rmse` / :func:`mae` — out-of-sample error of the model's return forecast;
-- :func:`mase_vs_persistence` — Mean Absolute Scaled Error against the persistence
+- :func:`rmse` / :func:`mae` - out-of-sample error of the model's return forecast;
+- :func:`mase_vs_persistence` - Mean Absolute Scaled Error against the persistence
   baseline; ``MASE >= 1`` means the model does NOT beat the naive random walk;
-- :func:`directional_accuracy` — sign-hit rate, with a binomial test vs. 0.5;
-- :func:`diebold_mariano` — the Diebold-Mariano (1995) test of equal predictive
+- :func:`directional_accuracy` - sign-hit rate, with a binomial test vs. 0.5;
+- :func:`diebold_mariano` - the Diebold-Mariano (1995) test of equal predictive
   accuracy against the random walk, using a Newey-West HAC long-run variance.
 
 DEBUNKED TRAP (documented once, never computed as a metric): a price-LEVEL R²
 looks deceptively high because the integrated/trended price level is dominated by
-its own lag — that is a unit-root artifact, NOT forecasting skill. We therefore
+its own lag - that is a unit-root artifact, NOT forecasting skill. We therefore
 NEVER report a price-level R². All skill is judged in return space.
 
 Importing this module has no side effects.
@@ -176,7 +176,7 @@ def mase_vs_persistence(
 
     Returns ``MAE(model) / MAE(persistence)`` where the persistence forecast is
     ``r_hat = 0`` (the random walk). A value ``>= 1`` means the model does NOT
-    beat the naive baseline in return space — the expected, honest outcome on
+    beat the naive baseline in return space - the expected, honest outcome on
     random-walk data.
 
     Parameters

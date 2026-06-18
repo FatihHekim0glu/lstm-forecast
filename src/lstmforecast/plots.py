@@ -1,8 +1,8 @@
 """Plotly figure builders (no Plotly dependency; the ``viz`` extra is for render).
 
 Each builder returns a plain ``dict`` shaped ``{"data": [...], "layout": {...}}``
-— the same Plotly-schema JSON the FastAPI layer serializes and the Next.js
-``PlotlyChart`` component renders — built directly from native Python types, so no
+- the same Plotly-schema JSON the FastAPI layer serializes and the Next.js
+``PlotlyChart`` component renders - built directly from native Python types, so no
 Plotly object ever crosses the API boundary and the builders do not import Plotly
 at all. Plotly/kaleido (the OPTIONAL ``viz`` extra) are only needed downstream to
 *render* these dicts to an image; importing this module has no side effects and
@@ -10,7 +10,7 @@ does not require Plotly.
 
 The two figures back the honest story: predicted-vs-actual next-day RETURNS (not
 price levels) and the model-vs-persistence error bar chart (equal bars on a
-random walk — the visual of the documented NULL).
+random walk - the visual of the documented NULL).
 
 Importing this module has no side effects.
 """
@@ -71,7 +71,7 @@ def forecast_vs_actual_figure(
 
     Two line traces over ``dates``: realized next-day returns and the model's
     forecast returns. NEVER plots price levels (the whole point is return-space
-    honesty). The ``{data, layout}`` dict is built from native types — Plotly is
+    honesty). The ``{data, layout}`` dict is built from native types - Plotly is
     not imported.
 
     Parameters
@@ -149,9 +149,9 @@ def error_vs_baseline_figure(
     """Build the model-vs-persistence out-of-sample error bar chart.
 
     A two-bar figure comparing the model's return-space error (RMSE and MAE) to
-    the persistence baseline's — the visual of the honest NULL (the bars are
+    the persistence baseline's - the visual of the honest NULL (the bars are
     essentially equal on random-walk data). The ``{data, layout}`` dict is built
-    from native types — Plotly is not imported.
+    from native types - Plotly is not imported.
 
     Parameters
     ----------

@@ -6,7 +6,7 @@ than the bar it is attached to. Concretely:
 - price changes use ``close.pct_change(fill_method=None)`` (no ffill-then-diff);
 - every indicator is lagged one bar with ``.shift(1)`` so the feature row aligned
   to the target ``r_{t+1}`` is computed from information available at the close of
-  day ``t`` and earlier — NEVER the same-bar close level (which would leak the
+  day ``t`` and earlier - NEVER the same-bar close level (which would leak the
   label's scale);
 - rolling / EWM windows have a finite warm-up that is dropped, and (in the
   walk-forward engine) are recomputed per fold so a warm-up never straddles a
@@ -134,7 +134,7 @@ def engineer_features(prices: pd.Series, spec: FeatureSpec | None = None) -> pd.
     columns: dict[str, pd.Series] = {}
 
     # Momentum: cumulative past return over each window (a difference of log-prices),
-    # never the close *level* — so the feature scale cannot encode the label scale.
+    # never the close *level* - so the feature scale cannot encode the label scale.
     for window in spec.momentum_windows:
         columns[f"mom_{window}"] = log_ret.rolling(window, min_periods=window).sum()
 
@@ -156,7 +156,7 @@ def engineer_features(prices: pd.Series, spec: FeatureSpec | None = None) -> pd.
     # THE .shift(1) DISCIPLINE: lag every column by one bar so the feature row indexed
     # at date t is a function of bars STRICTLY EARLIER than t. This makes the row at t
     # independent of P_t (and everything after), so perturbing bar t or any later bar
-    # never changes feature row t — the future-perturbation invariance the property
+    # never changes feature row t - the future-perturbation invariance the property
     # tests pin, and the headline fix for accidental same-bar leakage.
     frame = frame.shift(1)
 

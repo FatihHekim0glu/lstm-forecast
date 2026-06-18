@@ -1,4 +1,4 @@
-"""ONNX inference — the SERVE path (onnxruntime, NEVER TensorFlow).
+"""ONNX inference - the SERVE path (onnxruntime, NEVER TensorFlow).
 
 The container and the FastAPI router run the LSTM through this module ONLY. It
 loads the committed ``artifacts/*.onnx`` graph with onnxruntime (the ``[serve]``
@@ -30,7 +30,7 @@ DEFAULT_ARTIFACT_NAME: str = "lstm_forecast.onnx"
 def default_artifact_path() -> Path:
     """Return the filesystem path of the shipped default ONNX artifact.
 
-    Pure path arithmetic — does NOT check existence and imports nothing heavy, so
+    Pure path arithmetic - does NOT check existence and imports nothing heavy, so
     it is safe to call at import-time of a caller.
 
     Returns
@@ -169,7 +169,7 @@ class OnnxWalkForwardForecaster:
     a pre-trained :class:`OnnxForecaster` over the committed artifact and runs a
     real forward pass through onnxruntime on the per-fold-scaled ``look_back``
     sequences. ``fit`` is therefore a deliberate no-op (the artifact is fixed), so
-    the OOS predictions are the genuine ONNX LSTM outputs — never persistence's
+    the OOS predictions are the genuine ONNX LSTM outputs - never persistence's
     ``r_hat = 0``.
 
     The session is created lazily and SHARED across folds via a single wrapped
@@ -189,7 +189,7 @@ class OnnxWalkForwardForecaster:
         self._forecaster = forecaster
 
     def fit(self, x: SequenceTensor, y: FloatArray) -> OnnxWalkForwardForecaster:
-        """Return ``self`` unchanged — the committed ONNX artifact is fixed.
+        """Return ``self`` unchanged - the committed ONNX artifact is fixed.
 
         The shipped LSTM is trained offline and frozen into the ONNX graph, so the
         walk-forward does NOT re-fit weights here. ``fit`` exists only to mirror the

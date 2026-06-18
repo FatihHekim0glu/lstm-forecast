@@ -9,7 +9,7 @@ return graph DIRECTLY with the ``onnx`` builder (an ``onnxruntime``-adjacent, mu
 lighter dependency), so the committed artifact is reproducible WITHOUT TensorFlow
 and the honest-NULL story stays intact: the graph is a small, seeded LSTM whose
 recurrent weights are initialized but untrained-on-signal, so on random-walk data
-it cannot beat persistence — exactly the documented result. ``onnx`` is imported
+it cannot beat persistence - exactly the documented result. ``onnx`` is imported
 LAZILY inside the function so importing this module (and ``lstmforecast``) never
 pulls it in.
 
@@ -46,7 +46,7 @@ def build_native_lstm_onnx(
     linear head mapping the last hidden state to one next-day return, using the
     ``onnx`` builder API directly. Weights are drawn from a seeded RNG and scaled
     small, so the graph is a valid, runnable LSTM forecaster whose output on a
-    random walk carries no predictive signal — the honest NULL holds.
+    random walk carries no predictive signal - the honest NULL holds.
 
     The exported input signature ``(None, look_back, n_features)`` and the
     ``sequence`` / ``return_hat`` tensor names match the canonical tf2onnx export,

@@ -8,7 +8,7 @@ properties exercised here:
 - generator determinism (same seed -> byte-identical output; different seed ->
   different output);
 - random-walk / pure-noise returns are mean-zero and serially unpredictable
-  (lag-1 autocorrelation ~ 0) — the statistical basis of the honest NULL;
+  (lag-1 autocorrelation ~ 0) - the statistical basis of the honest NULL;
 - ``trend_plus_noise`` trends in PRICE space (the deceptive price-level R² trap)
   while its returns stay near-unpredictable;
 - ``to_log_returns`` differences raw observed prices without forward-filling;

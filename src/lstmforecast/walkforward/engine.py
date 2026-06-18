@@ -2,19 +2,19 @@
 
 This module enforces, per fold, every leakage guard the original repo lacked:
 
-1. **Per-fold feature recompute** — features are engineered separately inside each
+1. **Per-fold feature recompute** - features are engineered separately inside each
    train/val/test slice so an indicator warm-up never straddles a boundary.
-2. **Per-fold scaler fit on TRAIN ONLY** — the standardizer's mean/std are fitted
+2. **Per-fold scaler fit on TRAIN ONLY** - the standardizer's mean/std are fitted
    on the train slice exclusively, then APPLIED (never re-fitted) to val and test.
    This is the headline fix for the full-series-scaler leakage bug.
-3. **Purge (>= look_back)** — a gap of at least ``look_back`` bars is removed at
+3. **Purge (>= look_back)** - a gap of at least ``look_back`` bars is removed at
    every train/val/test boundary so no ``look_back``-length sequence window can
    span the split.
-4. **Embargo** — a further gap after each test block, so adjacent folds cannot
+4. **Embargo** - a further gap after each test block, so adjacent folds cannot
    share information through overlapping windows.
 
 The engine is generic over the model (it takes a ``model_factory`` callable), so
-the persistence baseline and the LSTM run through the SAME splits — the only fair
+the persistence baseline and the LSTM run through the SAME splits - the only fair
 way to compare them.
 
 Importing this module has no side effects.
@@ -203,7 +203,7 @@ class WalkForwardResult:
         Number of folds produced.
     n_trials:
         FULL count of HPO configurations scored on validation (feeds the DSR's
-        ``n_trials`` — the honest multiplicity count).
+        ``n_trials`` - the honest multiplicity count).
     """
 
     dates: pd.Index
@@ -272,7 +272,7 @@ def make_folds(n_obs: int, config: WalkForwardConfig) -> list[Fold]:
     # test slices advance by exactly ``advance`` rows, so a positive overlap arises
     # iff ``advance < test_size``. FOLD-OVERLAP GUARD: require ``step + embargo >=
     # test_size`` (equivalently ``step >= test_size`` once the embargo is netted
-    # out) so adjacent OOS test blocks NEVER overlap — overlapping test slices would
+    # out) so adjacent OOS test blocks NEVER overlap - overlapping test slices would
     # double-count observations and inflate the OOS sample with correlated days.
     advance = config.step + embargo
     if advance < config.test_size:
@@ -473,15 +473,15 @@ def _fold_sequences(
     """Recompute features + supervised sequences whose window-END is in ``bounds``.
 
     Features are recomputed per call (the per-fold recompute the brief mandates).
-    To use EVERY row in ``[start, stop)`` as a window END — not just rows beyond a
-    look-back warm-up internal to the slice — features are computed on a
+    To use EVERY row in ``[start, stop)`` as a window END - not just rows beyond a
+    look-back warm-up internal to the slice - features are computed on a
     LEFT-EXTENDED price span starting ``look_back + _FEATURE_WARMUP`` bars earlier.
     That left-context consists only of STRICTLY-PAST bars (it never reaches forward
     of ``stop``), so:
 
     * for the TRAIN slice it is in-sample history;
     * for the VAL/TEST slice the extra context lands in the ``>= look_back`` PURGE
-      gap that separates the slices — purged (training-dropped) bars, so a
+      gap that separates the slices - purged (training-dropped) bars, so a
       test-positioned window can use them WITHOUT leaking any train/val LABEL.
 
     The next-day target for a window ending at bar ``t`` is the log-return realized
@@ -509,7 +509,7 @@ def _fold_sequences(
     x, y, idx = create_sequences(feat, tgt, look_back=look_back)
     x_arr = np.asarray(x, dtype="float64")
     y_arr = _as_float_array(y)
-    if x_arr.ndim != 3 or x_arr.shape[0] == 0:  # degenerate — normalize to empty
+    if x_arr.ndim != 3 or x_arr.shape[0] == 0:  # degenerate - normalize to empty
         return _empty_fold(look_back, n_feat)
 
     # Keep only sequences whose window-END date falls inside THIS slice's date
