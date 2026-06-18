@@ -33,20 +33,29 @@ jobs:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
 
-      - name: Install project (lean extras; NOT [train] — TensorFlow is heavy)
+      - name: Install project (lean extras; NOT [train], TensorFlow is heavy)
         # The serve path (onnxruntime) + data/viz/dev are installed; the [train]
         # extra (TensorFlow/tf2onnx) is deliberately excluded so CI stays fast and
         # GPU-free. The TF train/export path is marked `slow` and skipped here.
-        run: uv pip install --system -e ".[data,serve,viz,dev]"
+        run: >-
+          uv sync --extra data --extra serve --extra viz --extra dev
+          --python ${{ matrix.python-version }}
 
       - name: Lint (ruff)
-        run: ruff check src tests
+        run: uv run ruff check src tests
 
       - name: Type-check (mypy)
-        # Non-blocking while residual strict-mode issues are burned down; surfaced
-        # in the log without failing the whole pipeline.
-        continue-on-error: true
-        run: mypy src
+        run: uv run mypy src
 
       - name: Test (pytest + coverage gate)
-        run: pytest -q -m "not slow" --cov=lstmforecast --cov-report=term --cov-fail-under=85
+        run: >-
+          uv run pytest -q -m "not slow"
+          --cov=lstmforecast --cov-report=term --cov-report=xml
+          --cov-fail-under=85
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
