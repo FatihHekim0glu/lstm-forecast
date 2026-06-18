@@ -158,7 +158,11 @@ def train_pipeline(
     wf_config = _walk_forward_config(n_prices, int(look_back))
     grid = [dict(params) for params in _HPO_GRID]
 
-    oos_artifact = default_artifact_path() if artifact_path is None else artifact_path
+    # The OOS walk-forward MODEL arm serves the committed (already-trained) ONNX
+    # artifact, which must exist now. The export target (below) is a separate path:
+    # a caller-supplied ``artifact_path`` may be a destination that does not exist
+    # yet, so it must never drive the evaluation.
+    oos_artifact = default_artifact_path()
     wf_result = run_walk_forward(
         prices,
         _oos_model_factory(oos_artifact),
@@ -184,8 +188,10 @@ def train_pipeline(
     n_effective_trials = int(wf_result.n_trials)
 
     # --- 5. (Optional) fit a final small LSTM and export the <5MB ONNX artifact.
+    # The export destination is the caller-supplied path, or the committed default
+    # (retrain-in-place) when none is given.
     final_config = LstmConfig(look_back=int(look_back), n_features=_n_features(), seed=int(seed))
-    target_path = oos_artifact
+    target_path = default_artifact_path() if artifact_path is None else artifact_path
     exported_path = ""
     export_backend = "skipped"
     if export:
