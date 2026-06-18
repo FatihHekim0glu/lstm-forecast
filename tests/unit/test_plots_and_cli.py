@@ -247,12 +247,22 @@ def test_cli_no_args_shows_help() -> None:
 
 @pytest.mark.parametrize("command", ["train", "forecast", "evaluate"])
 def test_cli_each_subcommand_help_exits_zero(command: str) -> None:
-    """Each subcommand exposes a working ``--help`` listing the --data option."""
+    """Each subcommand exposes a working ``--help`` listing the --data option.
+
+    Force a wide, colourless terminal so rich does not truncate the option name
+    (on a narrow CI terminal ``--data`` is rendered as ``--da…`` and the literal
+    substring disappears). With a fixed wide width the assertion checks what it
+    means to: that the ``--data`` option is present in the help.
+    """
     from typer.testing import CliRunner
 
     from lstmforecast.cli import build_app
 
-    result = CliRunner().invoke(build_app(), [command, "--help"])
+    result = CliRunner().invoke(
+        build_app(),
+        [command, "--help"],
+        env={"COLUMNS": "200", "NO_COLOR": "1"},
+    )
     assert result.exit_code == 0, result.output
     assert "--data" in result.output
 
