@@ -29,10 +29,10 @@ Running the shipped pipeline on the default seeded synthetic series
 
 | Metric                          | Value   | Reads as                                              |
 | ------------------------------- | ------- | ----------------------------------------------------- |
-| Return-space RMSE               | 0.0093  | error of the next-day **return** forecast             |
-| Return-space MAE                | 0.0073  | "                                                     |
+| Return-space RMSE               | 0.0095  | error of the next-day **return** forecast             |
+| Return-space MAE                | 0.0075  | "                                                     |
 | **MASE vs. persistence**        | **1.00**| ≥ 1 → **no** improvement over the random walk         |
-| Directional accuracy            | 0.50    | a coin flip; no sign skill                            |
+| Directional accuracy            | 0.00    | the `r_hat = 0` forecast never claims a side; no sign skill |
 | **Diebold-Mariano p-value**     | **1.00**| ≫ 0.05 → cannot reject "equal accuracy" vs. the RW    |
 | `n_effective_trials`            | 4       | honest multiplicity (the HPO grid size) fed to the DSR|
 | **`beats_naive`**               | **`false`** | the pure-derived verdict, the documented NULL     |

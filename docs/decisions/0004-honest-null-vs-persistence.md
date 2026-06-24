@@ -38,7 +38,7 @@ the shipped pipeline trains and evaluates on a **synthetic random walk**.
    synthetic random walk, the LSTM must **not** beat persistence (`MASE ≥ ~1`, DM
    insignificant). If it ever does, leakage has re-entered, and the test
    **fails.** The actual shipped numbers (`seed=7`): `MASE = 1.00`,
-   `DM p = 1.00`, directional `0.50`, `beats_naive = false`.
+   `DM p = 1.00`, directional `0.00`, `beats_naive = false`.
 
 ## Consequences
 

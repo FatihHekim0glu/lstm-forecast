@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - README finalized with the honest NULL headline, the **actual** synthetic
-  metrics (`seed=7`: `MASE = 1.00`, `DM p = 1.00`, directional `0.50`,
+  metrics (`seed=7`: `MASE = 1.00`, `DM p = 1.00`, directional `0.00`,
   `beats_naive = false`), a Validation table (ONNX-vs-Keras `1e-5`; oracle →
   tolerance → test), a Reproduce block (synthetic by default, `--data` for real),
   the debunked price-level-R² note (stated once), Limitations naming the
